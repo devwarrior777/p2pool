@@ -15,7 +15,7 @@ RPC_CHECK = defer.inlineCallbacks(lambda bitcoind: defer.returnValue(
             'potcoinaddress' in (yield bitcoind.rpc_help()) and
             not (yield bitcoind.rpc_getinfo())['testnet']
         ))
-SUBSIDY_FUNC = lambda height: 420*100000000 >> (height + 1)//280000
+SUBSIDY_FUNC = lambda height: 50*100000000 if height>920000 else 25*100000000 if height>930800 else 12*100000000 if height>941600 else 6*100000000 if height>952400 else 3*100000000 if height>963200 else 420*100000000 >> (height + 1)//280000
 POW_FUNC = lambda data: pack.IntType(256).unpack(__import__('ltc_scrypt').getPoWHash(data))
 BLOCK_PERIOD = 40 # s
 SYMBOL = 'POT'
