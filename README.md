@@ -1,4 +1,4 @@
-Modified p2pool to run with Digitalcoin, Worldcoin, Craftcoin, Casinocoin, Anoncoin, Globalcoin and Potcoin.
+Modified p2pool to run with Digitalcoin, Worldcoin, Craftcoin, Casinocoin, Anoncoin, Globalcoin and Nyancoin.
 
 Donations
 -------------------------
