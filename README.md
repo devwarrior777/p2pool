@@ -1,19 +1,37 @@
-Modified p2pool to run with Digitalcoin, Worldcoin, Craftcoin, Casinocoin, Anoncoin, Globalcoin and Nyancoin.
 
-Donations
 -------------------------
-Bitcoin		1DJPxjc4uDeaPdRpEofNyymbudV8WdozVR
+Decred P2Pool
+-------------------------
 
-Litecoin	LYhTMBGKuDksxPAFUvNXXkGkWQVmaK75oD
+This is the fork for a Decred-only P2Pool development 
 
-Digitalcoin	D5tWKx7njiFj8Ejr3h4ii8LRdxHJBKSZF9
+----
+TBD:
+----
+ - Fork P2Pool - find the best upgraded fork   <-- done
+ - Re-work Blake-256 python C module (pyd)     <-- done
+    @See: github.com/devwarrior777/decred_hash_py
+    - Build for Linux                         
+    - Build for VS-2015
+ - Adapt P2PPool:
+    - dcrd parameters, settings
+    - python setup
+    - python code  
+  - Test Pool:
+    - Add pool worker(s)
+    - Manage pool worker(s)
+    - Remove pool worker(s)
+  - Remove other coins from the code 
+	- mostly litecoin and other scrypt specific ones.
 
-Worldcoin	WbmHBuaAYhDn8zY9JaxRqNoWMtQjEM6Dfb
 
-Craftcoin	QBFBJs6KBX2GZogVdti6Ui6Zyx81gYPuVE
+=====================================================
 
-Casinocoin      CHnpgED6idR9zhevDCGs54dC3zD6o4wGT8
 
+Current State:
+-------------------------
+
+Modified p2pool to run with Digitalcoin, Worldcoin, Craftcoin, Casinocoin, Anoncoin, Globalcoin and Nyancoin.
 
 Original P2Pool README:
 -------------------------
