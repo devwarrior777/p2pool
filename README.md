@@ -8,9 +8,8 @@ This is the fork for a Decred-only P2Pool development
 ----
 TBD:
 ----
- - Fork P2Pool - find the best upgraded fork   <-- done but should be improved
- - Re-work Blake-256 python C module (pyd)     <-- done
-    @See: github.com/devwarrior777/decred_hash_py
+ - Fork P2Pool - find the best upgraded fork   <-- done
+ - Re-work Blake-256 python C module (pyd)     <-- done but should be fixed
     - Build for Linux               
     - Build for VS-2015
  - Adapt P2PPool:
