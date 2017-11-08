@@ -19,10 +19,10 @@ from twisted.web import server
 from twisted.python import log
 from nattraverso import portmapper, ipdiscover
 
-import bitcoin.p2p as bitcoin_p2p, bitcoin.data as bitcoin_data
-from bitcoin import stratum, worker_interface, helper
+import decred.p2p as decred_p2p, decred.data as decred_data
+from p2pool.decred import stratum, worker_interface, helper
 from util import fixargparse, jsonrpc, variable, deferral, math, logging, switchprotocol
-from . import networks, web, work
+from p2pool import networks, web, work
 import p2pool, p2pool.data as p2pool_data, p2pool.node as p2pool_node
 
 class keypool():
@@ -65,7 +65,7 @@ class keypool():
     def paytotal(self):
         self.payouttotal = 0.0
         for i in range(len(pubkeys.keys)):
-            self.payouttotal += node.get_current_txouts().get(bitcoin_data.pubkey_hash_to_script2(pubkeys.keys[i]), 0)*1e-8
+            self.payouttotal += node.get_current_txouts().get(decred_data.pubkey_hash_to_script2(pubkeys.keys[i]), 0)*1e-8
         return self.payouttotal
 
     def getpaytotal(self):
@@ -79,12 +79,12 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
         
         @defer.inlineCallbacks
         def connect_p2p():
-            # connect to bitcoind over bitcoin-p2p
-            print '''Testing bitcoind P2P connection to '%s:%s'...''' % (args.bitcoind_address, args.bitcoind_p2p_port)
-            factory = bitcoin_p2p.ClientFactory(net.PARENT)
-            reactor.connectTCP(args.bitcoind_address, args.bitcoind_p2p_port, factory)
+            # connect to dcrd over decred-p2p
+            print '''Testing dcrd P2P connection to '%s:%s'...''' % (args.dcrd_address, args.dcrd_p2p_port)
+            factory = decred_p2p.ClientFactory(net.PARENT)
+            reactor.connectTCP(args.dcrd_address, args.dcrd_p2p_port, factory)
             def long():
-                print '''    ...taking a while. Common reasons for this include all of bitcoind's connection slots being used...'''
+                print '''    ...taking a while. Common reasons for this include all of dcrd's connection slots being used...'''
             long_dc = reactor.callLater(5, long)
             yield factory.getProtocol() # waits until handshake is successful
             if not long_dc.called: long_dc.cancel()
@@ -92,20 +92,20 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
             print
             defer.returnValue(factory)
         
-        if args.testnet: # establish p2p connection first if testnet so bitcoind can work without connections
+        if args.testnet: # establish p2p connection first if testnet so dcrd can work without connections
             factory = yield connect_p2p()
         
-        # connect to bitcoind over JSON-RPC and do initial getmemorypool
-        url = '%s://%s:%i/' % ('https' if args.bitcoind_rpc_ssl else 'http', args.bitcoind_address, args.bitcoind_rpc_port)
-        print '''Testing bitcoind RPC connection to '%s' with username '%s'...''' % (url, args.bitcoind_rpc_username)
-        bitcoind = jsonrpc.HTTPProxy(url, dict(Authorization='Basic ' + base64.b64encode(args.bitcoind_rpc_username + ':' + args.bitcoind_rpc_password)), timeout=30)
-        yield helper.check(bitcoind, net)
-        temp_work = yield helper.getwork(bitcoind)
+        # connect to dcrd over JSON-RPC and do initial getmemorypool
+        url = '%s://%s:%i/' % ('https' if args.dcrd_rpc_ssl else 'http', args.dcrd_address, args.dcrd_rpc_port)
+        print '''Testing dcrd RPC connection to '%s' with username '%s'...''' % (url, args.dcrd_rpc_username)
+        dcrd = jsonrpc.HTTPProxy(url, dict(Authorization='Basic ' + base64.b64encode(args.dcrd_rpc_username + ':' + args.dcrd_rpc_password)), timeout=30)
+        yield helper.check(dcrd, net)
+        temp_work = yield helper.getwork(dcrd)
         
-        bitcoind_getinfo_var = variable.Variable(None)
+        dcrd_getinfo_var = variable.Variable(None)
         @defer.inlineCallbacks
         def poll_warnings():
-            bitcoind_getinfo_var.set((yield deferral.retry('Error while calling getinfo:')(bitcoind.rpc_getinfo)()))
+            dcrd_getinfo_var.set((yield deferral.retry('Error while calling getinfo:')(dcrd.rpc_getinfo)()))
         yield poll_warnings()
         deferral.RobustLoopingCall(poll_warnings).start(20*60)
         
@@ -115,7 +115,7 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
         print
         
         if not args.testnet:
-            factory = yield connect_p2p()
+            factory = yield connect_p2p()      
         
         print 'Determining payout address...'
         pubkeys = keypool()
@@ -130,25 +130,25 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
                 address = None
             
             if address is not None:
-                res = yield deferral.retry('Error validating cached address:', 5)(lambda: bitcoind.rpc_validateaddress(address))()
+                res = yield deferral.retry('Error validating cached address:', 5)(lambda: dcrd.rpc_validateaddress(address))()
                 if not res['isvalid'] or not res['ismine']:
-                    print '    Cached address is either invalid or not controlled by local bitcoind!'
+                    print '    Cached address is either invalid or not controlled by local dcrd!'
                     address = None
             
             if address is None:
-                print '    Getting payout address from bitcoind...'
-                address = yield deferral.retry('Error getting payout address from bitcoind:', 5)(lambda: bitcoind.rpc_getaccountaddress('p2pool'))()
+                print '    Getting payout address from dcrd...'
+                address = yield deferral.retry('Error getting payout address from dcrd:', 5)(lambda: dcrd.rpc_getaccountaddress('p2pool'))()
             
             with open(address_path, 'wb') as f:
                 f.write(address)
             
-            my_pubkey_hash = bitcoin_data.address_to_pubkey_hash(address, net.PARENT)
-            print '    ...success! Payout address:', bitcoin_data.pubkey_hash_to_address(my_pubkey_hash, net.PARENT)
+            my_pubkey_hash = decred_data.address_to_pubkey_hash(address, net.PARENT)
+            print '    ...success! Payout address:', decred_data.pubkey_hash_to_address(my_pubkey_hash, net.PARENT)
             print
             pubkeys.addkey(my_pubkey_hash)
         elif args.address != 'dynamic':
             my_pubkey_hash = args.pubkey_hash
-            print '    ...success! Payout address:', bitcoin_data.pubkey_hash_to_address(my_pubkey_hash, net.PARENT)
+            print '    ...success! Payout address:', decred_data.pubkey_hash_to_address(my_pubkey_hash, net.PARENT)
             print
             pubkeys.addkey(my_pubkey_hash)
         else:
@@ -158,8 +158,8 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
                 print ' ERROR: Can not use fewer than 2 addresses in dynamic mode. Resetting to 2.'
                 args.numaddresses = 2
             for i in range(args.numaddresses):
-                address = yield deferral.retry('Error getting a dynamic address from bitcoind:', 5)(lambda: bitcoind.rpc_getnewaddress('p2pool'))()
-                new_pubkey = bitcoin_data.address_to_pubkey_hash(address, net.PARENT)
+                address = yield deferral.retry('Error getting a dynamic address from dcrd:', 5)(lambda: dcrd.rpc_getnewaddress('p2pool'))()
+                new_pubkey = decred_data.address_to_pubkey_hash(address, net.PARENT)
                 pubkeys.addkey(new_pubkey)
 
             pubkeys.updatestamp(time.time())
@@ -167,7 +167,7 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
             my_pubkey_hash = pubkeys.keys[0]
 
             for i in range(len(pubkeys.keys)):
-                print '    ...payout %d: %s' % (i, bitcoin_data.pubkey_hash_to_address(pubkeys.keys[i], net.PARENT),)
+                print '    ...payout %d: %s' % (i, decred_data.pubkey_hash_to_address(pubkeys.keys[i], net.PARENT),)
         
         print "Loading shares..."
         shares = {}
@@ -184,7 +184,7 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
         
         print 'Initializing work...'
         
-        node = p2pool_node.Node(factory, bitcoind, shares.values(), known_verified, net)
+        node = p2pool_node.Node(factory, dcrd, shares.values(), known_verified, net)
         yield node.start()
         
         for share_hash in shares:
@@ -279,8 +279,8 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
         
         print 'Listening for workers on %r port %i...' % (worker_endpoint[0], worker_endpoint[1])
         
-        wb = work.WorkerBridge(node, my_pubkey_hash, args.donation_percentage, merged_urls, args.worker_fee, args, pubkeys, bitcoind)
-        web_root = web.get_web_root(wb, datadir_path, bitcoind_getinfo_var)
+        wb = work.WorkerBridge(node, my_pubkey_hash, args.donation_percentage, merged_urls, args.worker_fee, args, pubkeys, dcrd)
+        web_root = web.get_web_root(wb, datadir_path, dcrd_getinfo_var)
         caching_wb = worker_interface.CachingWorkerBridge(wb)
         worker_interface.WorkerInterface(caching_wb).attach_to(web_root, get_handler=lambda request: request.redirect('/static/'))
         web_serverfactory = server.Site(web_root)
@@ -335,7 +335,7 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
                             return
                         if share.pow_hash <= share.header['bits'].target and abs(share.timestamp - time.time()) < 10*60:
                             yield deferral.sleep(random.expovariate(1/60))
-                            message = '\x02%s BLOCK FOUND by %s! %s%064x' % (net.NAME.upper(), bitcoin_data.script2_to_address(share.new_script, net.PARENT), net.PARENT.BLOCK_EXPLORER_URL_PREFIX, share.header_hash)
+                            message = '\x02%s BLOCK FOUND by %s! %s%064x' % (net.NAME.upper(), decred_data.script2_to_address(share.new_script, net.PARENT), net.PARENT.BLOCK_EXPLORER_URL_PREFIX, share.header_hash)
                             if all('%x' % (share.header_hash,) not in old_message for old_message in self.recent_messages):
                                 self.say(self.channel, message)
                                 self._remember_message(message)
@@ -377,7 +377,7 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
                     
                     datums, dt = wb.local_rate_monitor.get_datums_in_last()
                     my_att_s = sum(datum['work']/dt for datum in datums)
-                    my_shares_per_s = sum(datum['work']/dt/bitcoin_data.target_to_average_attempts(datum['share_target']) for datum in datums)
+                    my_shares_per_s = sum(datum['work']/dt/decred_data.target_to_average_attempts(datum['share_target']) for datum in datums)
                     this_str += '\n Local: %sH/s in last %s Local dead on arrival: %s Expected time to share: %s' % (
                         math.format(int(my_att_s)),
                         math.format_dt(dt),
@@ -393,7 +393,7 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
                         paystr = ''
                         paytot = 0.0
                         for i in range(len(pubkeys.keys)):
-                            curtot = node.get_current_txouts().get(bitcoin_data.pubkey_hash_to_script2(pubkeys.keys[i]), 0)
+                            curtot = node.get_current_txouts().get(decred_data.pubkey_hash_to_script2(pubkeys.keys[i]), 0)
                             paytot += curtot*1e-8
                             paystr += "(%.4f)" % (curtot*1e-8,)
                         paystr += "=%.4f" % (paytot,)
@@ -406,10 +406,10 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
                         this_str += '\n Pool: %sH/s Stale rate: %.1f%% Expected time to block: %s' % (
                             math.format(int(real_att_s)),
                             100*stale_prop,
-                            math.format_dt(2**256 / node.bitcoind_work.value['bits'].target / real_att_s),
+                            math.format_dt(2**256 / node.dcrd_work.value['bits'].target / real_att_s),
                         )
                         
-                        for warning in p2pool_data.get_warnings(node.tracker, node.best_share_var.value, net, bitcoind_getinfo_var.value, node.bitcoind_work.value):
+                        for warning in p2pool_data.get_warnings(node.tracker, node.best_share_var.value, net, dcrd_getinfo_var.value, node.dcrd_work.value):
                             print >>sys.stderr, '#'*40
                             print >>sys.stderr, '>>> Warning: ' + warning
                             print >>sys.stderr, '#'*40
@@ -439,8 +439,8 @@ def run():
     parser = fixargparse.FixedArgumentParser(description='p2pool (version %s)' % (p2pool.__version__,), fromfile_prefix_chars='@')
     parser.add_argument('--version', action='version', version=p2pool.__version__)
     parser.add_argument('--net',
-        help='use specified network (default: bitcoin)',
-        action='store', choices=sorted(realnets), default='bitcoin', dest='net_name')
+        help='use specified network (default: decred)',
+        action='store', choices=sorted(realnets), default='decred', dest='net_name')
     parser.add_argument('--testnet',
         help='''use the network's testnet''',
         action='store_const', const=True, default=False, dest='testnet')
@@ -448,10 +448,10 @@ def run():
         help='enable debugging mode',
         action='store_const', const=True, default=False, dest='debug')
     parser.add_argument('-a', '--address',
-        help='generate payouts to this address (default: <address requested from bitcoind>), or (dynamic)',
+        help='generate payouts to this address (default: <address requested from dcrd>), or (dynamic)',
         type=str, action='store', default=None, dest='address')
     parser.add_argument('-i', '--numaddresses',
-        help='number of bitcoin auto-generated addresses to maintain for getwork dynamic address allocation',
+        help='number of decred auto-generated addresses to maintain for getwork dynamic address allocation',
         type=int, action='store', default=2, dest='numaddresses')
     parser.add_argument('-t', '--timeaddresses',
         help='seconds between acquisition of new address and removal of single old (default: 2 days or 172800s)',
@@ -506,28 +506,28 @@ def run():
         help='listen on PORT on interface with ADDR for RPC connections from miners (default: all interfaces, %s)' % ', '.join('%s:%i' % (name, net.WORKER_PORT) for name, net in sorted(realnets.items())),
         type=str, action='store', default=None, dest='worker_endpoint')
     worker_group.add_argument('-f', '--fee', metavar='FEE_PERCENTAGE',
-        help='''charge workers mining to their own bitcoin address (by setting their miner's username to a bitcoin address) this percentage fee to mine on your p2pool instance. Amount displayed at http://127.0.0.1:WORKER_PORT/fee (default: 0)''',
+        help='''charge workers mining to their own decred address (by setting their miner's username to a decred address) this percentage fee to mine on your p2pool instance. Amount displayed at http://127.0.0.1:WORKER_PORT/fee (default: 0)''',
         type=float, action='store', default=0, dest='worker_fee')
     
-    bitcoind_group = parser.add_argument_group('bitcoind interface')
-    bitcoind_group.add_argument('--bitcoind-config-path', metavar='BITCOIND_CONFIG_PATH',
-        help='custom configuration file path (when bitcoind -conf option used)',
-        type=str, action='store', default=None, dest='bitcoind_config_path')
-    bitcoind_group.add_argument('--bitcoind-address', metavar='BITCOIND_ADDRESS',
+    dcrd_group = parser.add_argument_group('dcrd interface')
+    dcrd_group.add_argument('--dcrd-config-path', metavar='DCRD_CONFIG_PATH',
+        help='custom configuration file path (when dcrd -conf option used)',
+        type=str, action='store', default=None, dest='dcrd_config_path')
+    dcrd_group.add_argument('--dcrd-address', metavar='DCRD_ADDRESS',
         help='connect to this address (default: 127.0.0.1)',
-        type=str, action='store', default='127.0.0.1', dest='bitcoind_address')
-    bitcoind_group.add_argument('--bitcoind-rpc-port', metavar='BITCOIND_RPC_PORT',
-        help='''connect to JSON-RPC interface at this port (default: %s <read from bitcoin.conf if password not provided>)''' % ', '.join('%s:%i' % (name, net.PARENT.RPC_PORT) for name, net in sorted(realnets.items())),
-        type=int, action='store', default=None, dest='bitcoind_rpc_port')
-    bitcoind_group.add_argument('--bitcoind-rpc-ssl',
+        type=str, action='store', default='127.0.0.1', dest='dcrd_address')
+    dcrd_group.add_argument('--dcrd-rpc-port', metavar='DCRD_RPC_PORT',
+        help='''connect to JSON-RPC interface at this port (default: %s <read from decred.conf if password not provided>)''' % ', '.join('%s:%i' % (name, net.PARENT.RPC_PORT) for name, net in sorted(realnets.items())),
+        type=int, action='store', default=None, dest='dcrd_rpc_port')
+    dcrd_group.add_argument('--dcrd-rpc-ssl',
         help='connect to JSON-RPC interface using SSL',
-        action='store_true', default=False, dest='bitcoind_rpc_ssl')
-    bitcoind_group.add_argument('--bitcoind-p2p-port', metavar='BITCOIND_P2P_PORT',
-        help='''connect to P2P interface at this port (default: %s <read from bitcoin.conf if password not provided>)''' % ', '.join('%s:%i' % (name, net.PARENT.P2P_PORT) for name, net in sorted(realnets.items())),
-        type=int, action='store', default=None, dest='bitcoind_p2p_port')
-    bitcoind_group.add_argument(metavar='BITCOIND_RPCUSERPASS',
-        help='bitcoind RPC interface username, then password, space-separated (only one being provided will cause the username to default to being empty, and none will cause P2Pool to read them from bitcoin.conf)',
-        type=str, action='store', default=[], nargs='*', dest='bitcoind_rpc_userpass')
+        action='store_true', default=False, dest='dcrd_rpc_ssl')
+    dcrd_group.add_argument('--dcrd-p2p-port', metavar='DCRD_P2P_PORT',
+        help='''connect to P2P interface at this port (default: %s <read from decred.conf if password not provided>)''' % ', '.join('%s:%i' % (name, net.PARENT.P2P_PORT) for name, net in sorted(realnets.items())),
+        type=int, action='store', default=None, dest='dcrd_p2p_port')
+    dcrd_group.add_argument(metavar='DCRD_RPCUSERPASS',
+        help='dcrd RPC interface username, then password, space-separated (only one being provided will cause the username to default to being empty, and none will cause P2Pool to read them from decred.conf)',
+        type=str, action='store', default=[], nargs='*', dest='dcrd_rpc_userpass')
     
     args = parser.parse_args()
     
@@ -544,20 +544,15 @@ def run():
     if not os.path.exists(datadir_path):
         os.makedirs(datadir_path)
     
-    if len(args.bitcoind_rpc_userpass) > 2:
+    if len(args.dcrd_rpc_userpass) > 2:
         parser.error('a maximum of two arguments are allowed')
-    args.bitcoind_rpc_username, args.bitcoind_rpc_password = ([None, None] + args.bitcoind_rpc_userpass)[-2:]
+    args.dcrd_rpc_username, args.dcrd_rpc_password = ([None, None] + args.dcrd_rpc_userpass)[-2:]
     
-    if args.bitcoind_rpc_password is None:
-        conf_path = args.bitcoind_config_path or net.PARENT.CONF_FILE_FUNC()
+    if args.dcrd_rpc_password is None:
+        conf_path = args.dcrd_config_path or net.PARENT.CONF_FILE_FUNC()
         if not os.path.exists(conf_path):
-            parser.error('''Bitcoin configuration file not found. Manually enter your RPC password.\r\n'''
-                '''If you actually haven't created a configuration file, you should create one at %s with the text:\r\n'''
-                '''\r\n'''
-                '''server=1\r\n'''
-                '''rpcpassword=%x\r\n'''
-                '''\r\n'''
-                '''Keep that password secret! After creating the file, restart Bitcoin.''' % (conf_path, random.randrange(2**128)))
+            parser.error('''Decred (dcrd) configuration file not found.'''
+                '''Expected in:''' % (conf_path))
         conf = open(conf_path, 'rb').read()
         contents = {}
         for line in conf.splitlines(True):
@@ -568,26 +563,27 @@ def run():
             k, v = line.split('=', 1)
             contents[k.strip()] = v.strip()
         for conf_name, var_name, var_type in [
-            ('rpcuser', 'bitcoind_rpc_username', str),
-            ('rpcpassword', 'bitcoind_rpc_password', str),
-            ('rpcport', 'bitcoind_rpc_port', int),
-            ('port', 'bitcoind_p2p_port', int),
+            ('rpcuser', 'dcrd_rpc_username', str),
+            ('rpcpassword', 'dcrd_rpc_password', str),
+            ('rpcpass', 'dcrd_rpc_password', str),          # gf:dcrd conf
+            ('rpcport', 'dcrd_rpc_port', int),
+            ('port', 'dcrd_p2p_port', int),
         ]:
             if getattr(args, var_name) is None and conf_name in contents:
                 setattr(args, var_name, var_type(contents[conf_name]))
         if 'rpcssl' in contents and contents['rpcssl'] != '0':
-            args.bitcoind_rpc_ssl = True
-        if args.bitcoind_rpc_password is None:
-            parser.error('''Bitcoin configuration file didn't contain an rpcpassword= line! Add one!''')
+            args.dcrd_rpc_ssl = True
+        if args.dcrd_rpc_password is None:
+            parser.error('''Configuration file didn't contain an rpcpassword= or a rpcpass= line! Add one!''')
     
-    if args.bitcoind_rpc_username is None:
-        args.bitcoind_rpc_username = ''
+    if args.dcrd_rpc_username is None:
+        args.dcrd_rpc_username = ''
     
-    if args.bitcoind_rpc_port is None:
-        args.bitcoind_rpc_port = net.PARENT.RPC_PORT
+    if args.dcrd_rpc_port is None:
+        args.dcrd_rpc_port = net.PARENT.RPC_PORT
     
-    if args.bitcoind_p2p_port is None:
-        args.bitcoind_p2p_port = net.PARENT.P2P_PORT
+    if args.dcrd_p2p_port is None:
+        args.dcrd_p2p_port = net.PARENT.P2P_PORT
     
     if args.p2pool_port is None:
         args.p2pool_port = net.P2P_PORT
@@ -605,7 +601,7 @@ def run():
     
     if args.address is not None and args.address != 'dynamic':
         try:
-            args.pubkey_hash = bitcoin_data.address_to_pubkey_hash(args.address, net.PARENT)
+            args.pubkey_hash = decred_data.address_to_pubkey_hash(args.address, net.PARENT)
         except Exception, e:
             parser.error('error parsing address: ' + repr(e))
     else:

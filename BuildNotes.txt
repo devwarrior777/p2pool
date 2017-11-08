@@ -1,0 +1,35 @@
+Required:
+---------------
+Twisted>=12.2.0
+argparse>=1.2.1
+pyOpenSSL>=0.13
+---------------
+
+Twisted:
+	
+	reactor.internet - imports not seen - Ok tested with: tstreact.py
+
+py2exe:
+	
+	python -m pip install py2exe_py2 for python 2.7
+
+msvc9:
+Microsoft Visual C++ 9.0 is required. Get msi from aka.ms/vcpython27
+
+	Using with Python distribution tools
+	Python package developers should download and use this compiler 
+	to produce binary wheels for their Python packages to upload to PyPI.
+	Installing the wheel package, updating to setuptools 6.0 or later, 
+	and adding setup.py bdist_wheel upload to your build process will 
+	produce the correct files (remember to do this for both 32-bit and
+	64-bit versions).
+
+	If a Python package you are installing does not have a wheel, you can
+	install this compiler package on your own machine. Once the compiler 
+	is installed and you have updated to setuptools 6.0 or later, you can
+	use pip install to build and install the Python 
+
+You do not have a working installation of the service_identity module: 
+	
+	python -m pip install service_identity
+

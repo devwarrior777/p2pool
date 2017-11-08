@@ -4,7 +4,7 @@ import sys
 from twisted.internet import protocol, reactor
 from twisted.python import log
 
-from p2pool.bitcoin import data as bitcoin_data, getwork
+from p2pool.decred import data as decred_data, getwork
 from p2pool.util import expiring_dict, jsonrpc, pack
 
 
@@ -41,7 +41,7 @@ class StratumRPCMiningProvider(object):
             self.transport.loseConnection()
             return
         jobid = str(random.randrange(2**128))
-        self.other.svc_mining.rpc_set_difficulty(bitcoin_data.target_to_difficulty(x['share_target'])*self.wb.net.DUMB_SCRYPT_DIFF).addErrback(lambda err: None)
+        self.other.svc_mining.rpc_set_difficulty(decred_data.target_to_difficulty(x['share_target'])*self.wb.net.DUMB_SCRYPT_DIFF).addErrback(lambda err: None)
         self.other.svc_mining.rpc_notify(
             jobid, # jobid
             getwork._swap4(pack.IntType(256).pack(x['previous_block'])).encode('hex'), # prevhash
@@ -66,7 +66,7 @@ class StratumRPCMiningProvider(object):
         header = dict(
             version=x['version'],
             previous_block=x['previous_block'],
-            merkle_root=bitcoin_data.check_merkle_link(bitcoin_data.hash256(new_packed_gentx), x['merkle_link']),
+            merkle_root=decred_data.check_merkle_link(decred_data.hash256(new_packed_gentx), x['merkle_link']),
             timestamp=pack.IntType(32).unpack(getwork._swap4(ntime.decode('hex'))),
             bits=x['bits'],
             nonce=pack.IntType(32).unpack(getwork._swap4(nonce.decode('hex'))),

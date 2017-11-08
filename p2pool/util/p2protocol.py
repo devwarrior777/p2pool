@@ -1,8 +1,9 @@
 '''
 Generic message-based protocol used by Bitcoin and P2Pool for P2P communication
+
+gf: Change payload hashing to Blake256
 '''
 
-import hashlib
 import struct
 
 from twisted.internet import protocol
@@ -10,6 +11,7 @@ from twisted.python import log
 
 import p2pool
 from p2pool.util import datachunker, variable
+from p2pool.decred.blake import BLAKE
 
 class TooLong(Exception):
     pass
@@ -21,6 +23,12 @@ class Protocol(protocol.Protocol):
         self.dataReceived2 = datachunker.DataChunker(self.dataReceiver())
         self.traffic_happened = traffic_happened
         self.ignore_trailing_payload = ignore_trailing_payload
+        
+    def getChecksumForPayload(self, payload):
+        blake256 = BLAKE(256)
+        hashed_payload = blake256.digest(payload)
+        checksum = hashed_payload[:4]
+        return checksum
     
     def dataReceived(self, data):
         self.traffic_happened.happened('p2p/in', len(data))
@@ -40,10 +48,11 @@ class Protocol(protocol.Protocol):
             checksum = yield 4
             payload = yield length
             
-            if hashlib.sha256(hashlib.sha256(payload).digest()).digest()[:4] != checksum:
+            payload_checksum = self.getChecksumForPayload(payload)
+            if payload_checksum != checksum:
                 print 'invalid hash for', self.transport.getPeer().host, repr(command), length, checksum.encode('hex')
                 if p2pool.DEBUG:
-                    print hashlib.sha256(hashlib.sha256(payload).digest()).digest()[:4].encode('hex'), payload.encode('hex')
+                    print  "RECV CHECKSUM: ", payload_checksum.encode('hex'), " PAYLOAD: ", payload.encode('hex')
                 self.badPeerHappened()
                 continue
             
@@ -91,7 +100,12 @@ class Protocol(protocol.Protocol):
         payload = type_.pack(payload2)
         if len(payload) > self._max_payload_length:
             raise TooLong('payload too long')
-        data = self._message_prefix + struct.pack('<12sI', command, len(payload)) + hashlib.sha256(hashlib.sha256(payload).digest()).digest()[:4] + payload
+        
+        payload_checksum = self.getChecksumForPayload(payload)
+        data = self._message_prefix + struct.pack('<12sI', command, len(payload)) + payload_checksum + payload
+        if p2pool.DEBUG:
+            print "SEND CHECKSUM: ", payload_checksum.encode('hex'), " PAYLOAD: ", payload.encode('hex')
+
         self.traffic_happened.happened('p2p/out', len(data))
         self.transport.write(data)
     
@@ -100,5 +114,5 @@ class Protocol(protocol.Protocol):
         if attr.startswith(prefix):
             command = attr[len(prefix):]
             return lambda **payload2: self.sendPacket(command, payload2)
-        #return protocol.Protocol.__getattr__(self, attr)
+#         return protocol.Protocol.__getattr__(self, attr)                 # gf:not sure who is right here - failfast?
         raise AttributeError(attr)

@@ -1,0 +1,83 @@
+-------------------------------------------------------------------------------
+dcrd testnet2 startup for development:
+-------------------------------------------------------------------------------
+
+dcrd --debuglevel=debug --testnet --notls --miningaddr=TscoEFWZjuWEqVPNGGzM9X3Pa8iXHk6jgYg
+
+
+-------------------------------------------------------------------------------
+P2P_PREFIX for decred:
+-------------------------------------------------------------------------------
+
+dcrd/wire/protocol.go
+
+const (
+	// MainNet represents the main decred network.
+	MainNet CurrencyNet = 0xd9b400f9
+
+	// RegTest represents the regression test network.
+	RegTest CurrencyNet = 0xdab500fa
+
+	// TestNet2 represents the 2nd test network.
+	TestNet2 CurrencyNet = 0x48e7a065
+
+	// SimNet represents the simulation test network.
+	SimNet CurrencyNet = 0x12141c16
+)
+
+Reverse byte order for p2pool/bitcoin/networks/decred
+
+
+-------------------------------------------------------------------------------
+P2P Messaging
+-------------------------------------------------------------------------------
+
+ Cannot start peer 127.0.0.1:51086 (inbound): ReadMessage: payload checksum failed - header indicates [135 27 169 142], but actual checksum is [116 10 163 1].
+
+	// ProtocolVersion is the latest protocol version this package supports.
+	ProtocolVersion uint32 = 5														<-- 1..5	00100000...10100000 ?
+
+Prototcol version 1..5	--- 
+	
+	// HashB calculates hash(b) and returns the resulting bytes.
+	func HashB(b []byte) []byte {
+		a := blake256.New()
+		a.Write(b)
+		out := a.Sum(nil)
+		return out
+	}
+
+P2P Messages have the payload hashed using blake256
+
+Got a python blake impl. from http://www.seanet.com/~bugbee/crypto/blake/
+
+p2pool/util/blake
+
+Updated:
+p2pool/util/p2protocol
+
+    def getChecksumForPayload(self, payload):
+        blake256 = blake.BLAKE(256)
+        hashed_payload = blake256.digest(payload)
+        checksum = hashed_payload[:4]
+        return checksum
+
+  ...what about merkle?	
+
+-------------------------------------------------------------------------------
+func (s *rpcServer) Start() {
+func (s *rpcServer) jsonRPCRead(w http.ResponseWriter, r *http.Request, isAdmin bool) {
+
+
+
+
+
+-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+
+
+
+

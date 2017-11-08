@@ -10,6 +10,6 @@ from Parser      import *
 from SOAPBuilder import *
 from Server      import *
 from Types       import *
-from Utilities     import *
+from Utilities   import *
 import wstools
 import WSDL

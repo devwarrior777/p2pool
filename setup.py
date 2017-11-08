@@ -14,8 +14,8 @@ im64 = '64' in platform.architecture()[0]
 extra_includes = []
 import p2pool.networks
 extra_includes.extend('p2pool.networks.' + x for x in p2pool.networks.nets)
-import p2pool.bitcoin.networks
-extra_includes.extend('p2pool.bitcoin.networks.' + x for x in p2pool.bitcoin.networks.nets)
+import p2pool.decred.networks
+extra_includes.extend('p2pool.decred.networks.' + x for x in p2pool.decred.networks.nets)
 
 if os.path.exists('INITBAK'):
     os.remove('INITBAK')
