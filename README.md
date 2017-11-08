@@ -8,13 +8,16 @@ This is the fork for a Decred-only P2Pool development
 ----
 TBD:
 ----
- - Fork P2Pool - find the best upgraded fork   <-- done
+ - Fork P2Pool - find the best upgraded fork   <-- done but should be improved
  - Re-work Blake-256 python C module (pyd)     <-- done
     @See: github.com/devwarrior777/decred_hash_py
-    - Build for Linux                         
+    - Build for Linux               
     - Build for VS-2015
  - Adapt P2PPool:
     - dcrd parameters, settings
+    - update p2p code
+    - blake256 hashing
+    - new rpc code
     - python setup
     - python code  
   - Test Pool:
@@ -27,11 +30,6 @@ TBD:
 
 =====================================================
 
-
-Current State:
--------------------------
-
-Modified p2pool to run with Digitalcoin, Worldcoin, Craftcoin, Casinocoin, Anoncoin, Globalcoin and Nyancoin.
 
 Original P2Pool README:
 -------------------------
