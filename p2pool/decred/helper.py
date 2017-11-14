@@ -77,9 +77,9 @@ def getwork(dcrd, use_getblocktemplate=False): # TODO: remove getblocktemplate c
     transactions = [work[th] for th in transaction_hashes]
     packed_transactions = [x.decode('hex') for x in work]
     if 'height' not in work:
-        work['height'] = (yield dcrd.rpc_getbestblock()) ['height']
-        work['previous_block'] = ph = (yield dcrd.rpc_getblockhash(work['height']))
-        print ph
+        work['height'] = currrblock = (yield dcrd.rpc_getbestblock()) ['height']
+        work['previous_block'] = peviousblockhash = (yield (dcrd.rpc_getblockhash(work['height'] -1)))
+        print 'current block number:', currrblock, 'previous block hash', peviousblockhash
 #     elif p2pool.DEBUG:
 #         assert work['height'] == (yield dcrd.rpc_getblock(work['previousblockhash']))['height'] + 1
 #     defer.returnValue(dict(
@@ -97,6 +97,8 @@ def getwork(dcrd, use_getblocktemplate=False): # TODO: remove getblocktemplate c
 #         use_getblocktemplate=use_getblocktemplate,
 #         latency=end - start,
 #     ))
+
+    # Just for test at the moment - to see what data in what format is needed
     defer.returnValue(dict(
         version=1,
         previous_block=work['previous_block'],

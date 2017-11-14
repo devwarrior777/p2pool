@@ -117,7 +117,7 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
         print
         
         if not args.testnet:
-            factory = yield connect_p2p()      
+            factory = yield connect_p2p()
         
         print 'Determining payout address...'
         pubkeys = keypool()
