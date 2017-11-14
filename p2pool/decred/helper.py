@@ -22,12 +22,18 @@ def check(dcrd, net):
 
 @deferral.retry('Error getting work from dcrd:', 3)
 @defer.inlineCallbacks
-def getwork(dcrd, use_getblocktemplate=False):
+def getwork(dcrd, use_getblocktemplate=False): # TODO: remove getblocktemplate completely
     def go():
         if use_getblocktemplate:
-            return dcrd.rpc_getblocktemplate(dict(mode='template'))
+            # gf: remove getblocktemplate
+            raise Exception("getblocktemplate - not supported")
+#             return dcrd.rpc_getblocktemplate(dict(mode='template'))
+            #<-gf:
         else:
-            return dcrd.rpc_getmemorypool()
+            # gf: getrawmempool
+            #return dcrd.rpc_getmemorypool()
+            return dcrd.rpc_getrawmempool(True) # verbose - keyed on tx hash
+            #<-gf:
     try:
         start = time.time()
         work = yield go()
@@ -41,26 +47,72 @@ def getwork(dcrd, use_getblocktemplate=False):
         except jsonrpc.Error_for_code(-32601): # Method not found
             print >>sys.stderr, 'Error: Bitcoin version too old! Upgrade to v0.5 or newer!'
             raise deferral.RetrySilentlyException()
-    packed_transactions = [(x['data'] if isinstance(x, dict) else x).decode('hex') for x in work['transactions']]
+    #gf: getrawmempool
+#     packed_transactions = [(x['data'] if isinstance(x, dict) else x).decode('hex') for x in work['transactions']]
+#     if 'height' not in work:
+#         work['height'] = (yield dcrd.rpc_getblock(work['previousblockhash']))['height'] + 1
+#     elif p2pool.DEBUG:
+#         assert work['height'] == (yield dcrd.rpc_getblock(work['previousblockhash']))['height'] + 1
+#     defer.returnValue(dict(
+#         version=work['version'],
+#         previous_block=int(work['previousblockhash'], 16),
+#         transactions=map(decred_data.tx_type.unpack, packed_transactions),
+#         transaction_hashes=map(decred_data.hash256, packed_transactions),
+#         transaction_fees=[x.get('fee', None) if isinstance(x, dict) else None for x in work['transactions']],
+#         subsidy=work['coinbasevalue'],
+#         time=work['time'] if 'time' in work else work['curtime'],
+#         bits=decred_data.FloatingIntegerType().unpack(work['bits'].decode('hex')[::-1]) if isinstance(work['bits'], (str, unicode)) else decred_data.FloatingInteger(work['bits']),
+#         coinbaseflags=work['coinbaseflags'].decode('hex') if 'coinbaseflags' in work else ''.join(x.decode('hex') for x in work['coinbaseaux'].itervalues()) if 'coinbaseaux' in work else '',
+#         height=work['height'],
+#         last_update=time.time(),
+#         use_getblocktemplate=use_getblocktemplate,
+#         latency=end - start,
+#     ))
+    #
+    # what we have is raw transaction hashes in a list
+    #
+    #<-gf:
+    transaction_hashes = [x for x in work]
+    
+    transactions = [work[th] for th in transaction_hashes]
+    packed_transactions = [x.decode('hex') for x in work]
     if 'height' not in work:
-        work['height'] = (yield dcrd.rpc_getblock(work['previousblockhash']))['height'] + 1
-    elif p2pool.DEBUG:
-        assert work['height'] == (yield dcrd.rpc_getblock(work['previousblockhash']))['height'] + 1
+        work['height'] = (yield dcrd.rpc_getbestblock()) ['height']
+        work['previous_block'] = ph = (yield dcrd.rpc_getblockhash(work['height']))
+        print ph
+#     elif p2pool.DEBUG:
+#         assert work['height'] == (yield dcrd.rpc_getblock(work['previousblockhash']))['height'] + 1
+#     defer.returnValue(dict(
+#         version=work['version'],
+#         previous_block=int(work['height'] - 1),
+#         transactions=map(decred_data.tx_type.unpack, packed_transactions),
+#         transaction_hashes=map(decred_data.hash256, packed_transactions),
+#         transaction_fees=[x.get('fee', None) if isinstance(x, dict) else None for x in work],
+#         subsidy=work['coinbasevalue'],
+#         time=work['time'],
+#         bits=decred_data.FloatingIntegerType().unpack(work['bits'].decode('hex')[::-1]) if isinstance(work['bits'], (str, unicode)) else decred_data.FloatingInteger(work['bits']),
+#         coinbaseflags=work['coinbaseflags'].decode('hex') if 'coinbaseflags' in work else ''.join(x.decode('hex') for x in work['coinbaseaux'].itervalues()) if 'coinbaseaux' in work else '',
+#         height=work['height'],
+#         last_update=time.time(),
+#         use_getblocktemplate=use_getblocktemplate,
+#         latency=end - start,
+#     ))
     defer.returnValue(dict(
-        version=work['version'],
-        previous_block=int(work['previousblockhash'], 16),
-        transactions=map(decred_data.tx_type.unpack, packed_transactions),
-        transaction_hashes=map(decred_data.hash256, packed_transactions),
-        transaction_fees=[x.get('fee', None) if isinstance(x, dict) else None for x in work['transactions']],
-        subsidy=work['coinbasevalue'],
-        time=work['time'] if 'time' in work else work['curtime'],
-        bits=decred_data.FloatingIntegerType().unpack(work['bits'].decode('hex')[::-1]) if isinstance(work['bits'], (str, unicode)) else decred_data.FloatingInteger(work['bits']),
-        coinbaseflags=work['coinbaseflags'].decode('hex') if 'coinbaseflags' in work else ''.join(x.decode('hex') for x in work['coinbaseaux'].itervalues()) if 'coinbaseaux' in work else '',
+        version=1,
+        previous_block=work['previous_block'],
+        transactions=transactions,
+        transaction_hashes=transaction_hashes,
+        transaction_fees=0,
+        subsidy=6.1,
+        time=time.time(),
+        bits=0,
+        coinbaseflags=0,
         height=work['height'],
         last_update=time.time(),
         use_getblocktemplate=use_getblocktemplate,
         latency=end - start,
     ))
+
 
 @deferral.retry('Error submitting primary block: (will retry)', 10, 10)
 def submit_block_p2p(block, factory, net):

@@ -168,7 +168,7 @@ merkle_record_type = pack.ComposedType([
     ('right', pack.IntType(256)),
 ])
 
-def merkle_hash(hashes):
+def merkle_hash(hashes): # TODO: Blake256
     if not hashes:
         return 0
     hash_list = list(hashes)

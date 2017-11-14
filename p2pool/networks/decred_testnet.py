@@ -15,7 +15,7 @@ PERSIST = False
 WORKER_PORT = 19332                                    # <- connect my worker here over stratum
 BOOTSTRAP_ADDRS = ''.split(' ')                        # <- ? dont have any anyway
 ANNOUNCE_CHANNEL = '#p2pool-dcr-alt'
-VERSION_CHECK = lambda v: None if 00100000 <= v else 'Decred version too old. Upgrade to 0.11.2 or newer!' # not a bug. BIP65 support is ensured by SOFTFORKS_REQUIRED
+VERSION_CHECK = lambda v: None if 01010000 <= v else 'Decred version too old. Upgrade to 1.1.0 or newer!' # not a bug. BIP65 support is ensured by SOFTFORKS_REQUIRED
 VERSION_WARNING = lambda v: None
 #SOFTFORKS_REQUIRED = set(['bip65', 'csv', 'segwit'])
 #MINIMUM_PROTOCOL_VERSION = 1600

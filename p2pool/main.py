@@ -110,8 +110,10 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
         deferral.RobustLoopingCall(poll_warnings).start(20*60)
         
         print '    ...success!'
-        print '    Current block hash: %x' % (temp_work['previous_block'],)
-        print '    Current block height: %i' % (temp_work['height'] - 1,)
+#         print '    Current block hash: %x' % (temp_work['previous_block'],)
+#         print '    Current block height: %i' % (temp_work['height'] - 1,)
+        print '    Current block hash: {}'.format(temp_work['previous_block'])
+        print '    Current block height: {}'.format(temp_work['height'] - 1)
         print
         
         if not args.testnet:

@@ -10,10 +10,18 @@ P2P_PREFIX = '65A0E748'.decode('hex')
 P2P_PORT = 19108
 ADDRESS_VERSION = 0 #111
 RPC_PORT = 19109
+# RPC_CHECK = defer.inlineCallbacks(lambda dcrd: defer.returnValue(
+#             'decredaddress' in (yield dcrd.rpc_help()) and
+#             (yield dcrd.rpc_getinfo())['testnet']
+#         ))
+#
+# Check genesis block of testnet2
+#
 RPC_CHECK = defer.inlineCallbacks(lambda dcrd: defer.returnValue(
-            'decredaddress' in (yield dcrd.rpc_help()) and
+            (yield helper.check_genesis_block(dcrd, '4261602a9d07d80ad47621a64ba6a07754902e496777edc4ff581946bd7bc29c')) and
             (yield dcrd.rpc_getinfo())['testnet']
         ))
+
 SUBSIDY_FUNC = lambda height: 50*100000000 >> (height + 1)//210000
 ###POW_FUNC = lambda data: pack.IntType(256).unpack(__import__('blake_hash').getPoWHash(data))  <-- FIXME
 POW_FUNC = lambda data: pack.IntType(256).unpack(__import__('blake_hash').getPoWHash(data))

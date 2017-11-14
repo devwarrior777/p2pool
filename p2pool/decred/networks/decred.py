@@ -11,7 +11,7 @@ from .. import helper
 from p2pool.util import pack
 
 
-P2P_PREFIX = 'F900B4D9'.decode('hex')   # MsgVersion 1..5 #  
+P2P_PREFIX = 'F900B4D9'.decode('hex')   # MsgVersion 1..5 #
 P2P_PORT = 9108
 ADDRESS_VERSION = 76
 RPC_PORT = 9109
