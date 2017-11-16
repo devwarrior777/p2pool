@@ -8,6 +8,7 @@ import time
 from twisted.internet import defer, protocol, reactor
 from twisted.python import failure, log
 
+
 import p2pool
 from p2pool import data as p2pool_data
 from p2pool.decred import data as decred_data
