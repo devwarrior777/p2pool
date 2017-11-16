@@ -15,6 +15,8 @@ P2P_PREFIX = 'F900B4D9'.decode('hex')   # MsgVersion 1..5 #
 P2P_PORT = 9108
 ADDRESS_VERSION = 76
 RPC_PORT = 9109
+RPC_WALLET_PORT = 9110
+
 # FIXME Genesis Block hash for Decred
 RPC_CHECK = defer.inlineCallbacks(lambda dcrd: defer.returnValue(
             (yield helper.check_genesis_block(dcrd, '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f')) and

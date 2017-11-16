@@ -78,7 +78,7 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
         print
         
         @defer.inlineCallbacks
-        def connect_p2p():
+        def connect_p2p():                          # TODO: fix unknown type no type for 'getminings'
             # connect to dcrd over decred-p2p
             print '''Testing dcrd P2P connection to '%s:%s'...''' % (args.dcrd_address, args.dcrd_p2p_port)
             factory = decred_p2p.ClientFactory(net.PARENT)
@@ -100,6 +100,14 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
         print '''Testing dcrd RPC connection to '%s' with username '%s'...''' % (url, args.dcrd_rpc_username)
         dcrd = jsonrpc.HTTPProxy(url, dict(Authorization='Basic ' + base64.b64encode(args.dcrd_rpc_username + ':' + args.dcrd_rpc_password)), timeout=30)
         yield helper.check(dcrd, net)
+
+        # wallet separate
+        # 9111/19111
+        walleturl = '%s://%s:%i/' % ('https' if args.dcrd_rpc_ssl else 'http', args.dcrd_address, args.dcrd_rpc_wallet_port)
+        print '''Testing dcrdwallet RPC connection to '%s' with username '%s'...''' % (walleturl, args.dcrd_rpc_username)
+        dcrdwallet = jsonrpc.HTTPProxy(walleturl, dict(Authorization='Basic ' + base64.b64encode(args.dcrd_rpc_username + ':' + args.dcrd_rpc_password)), timeout=30)
+        yield helper.checkwallet(dcrdwallet, net)
+
         temp_work = yield helper.getwork(dcrd)
         
         dcrd_getinfo_var = variable.Variable(None)
@@ -132,15 +140,17 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
                 address = None
             
             if address is not None:
-                res = yield deferral.retry('Error validating cached address:', 5)(lambda: dcrd.rpc_validateaddress(address))()
+                res = yield deferral.retry('Error validating cached address:', 5)(lambda: dcrdwallet.rpc_validateaddress(address))()
                 if not res['isvalid'] or not res['ismine']:
                     print '    Cached address is either invalid or not controlled by local dcrd!'
                     address = None
             
             if address is None:
                 print '    Getting payout address from dcrd...'
-                address = yield deferral.retry('Error getting payout address from dcrd:', 5)(lambda: dcrd.rpc_getaccountaddress('p2pool'))()
-            
+                #gf->
+                #address = yield deferral.retry('Error getting payout address from dcrd:', 5)(lambda: dcrdwallet.rpc_getaccountaddress('p2pool'))()
+                address = yield deferral.retry('Error getting payout address from dcrd:', 5)(lambda: dcrdwallet.rpc_getaccountaddress('default'))()
+                #<-gf
             with open(address_path, 'wb') as f:
                 f.write(address)
             
@@ -160,7 +170,7 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
                 print ' ERROR: Can not use fewer than 2 addresses in dynamic mode. Resetting to 2.'
                 args.numaddresses = 2
             for i in range(args.numaddresses):
-                address = yield deferral.retry('Error getting a dynamic address from dcrd:', 5)(lambda: dcrd.rpc_getnewaddress('p2pool'))()
+                address = yield deferral.retry('Error getting a dynamic address from dcrd:', 5)(lambda: dcrdwallet.rpc_getnewaddress('p2pool'))()
                 new_pubkey = decred_data.address_to_pubkey_hash(address, net.PARENT)
                 pubkeys.addkey(new_pubkey)
 
@@ -521,6 +531,9 @@ def run():
     dcrd_group.add_argument('--dcrd-rpc-port', metavar='DCRD_RPC_PORT',
         help='''connect to JSON-RPC interface at this port (default: %s <read from decred.conf if password not provided>)''' % ', '.join('%s:%i' % (name, net.PARENT.RPC_PORT) for name, net in sorted(realnets.items())),
         type=int, action='store', default=None, dest='dcrd_rpc_port')
+    dcrd_group.add_argument('--dcrd-rpc-wallet-port', metavar='DCRD_RPC_WALLET_PORT',
+        help='''connect to JSON-RPC wallet interface at this port (default: %s <read from decred.conf if password not provided>)''' % ', '.join('%s:%i' % (name, net.PARENT.RPC_WALLET_PORT) for name, net in sorted(realnets.items())),
+        type=int, action='store', default=None, dest='dcrd_rpc_wallet_port')
     dcrd_group.add_argument('--dcrd-rpc-ssl',
         help='connect to JSON-RPC interface using SSL',
         action='store_true', default=False, dest='dcrd_rpc_ssl')
@@ -583,6 +596,9 @@ def run():
     
     if args.dcrd_rpc_port is None:
         args.dcrd_rpc_port = net.PARENT.RPC_PORT
+    
+    if args.dcrd_rpc_wallet_port is None:
+        args.dcrd_rpc_wallet_port = net.PARENT.RPC_WALLET_PORT
     
     if args.dcrd_p2p_port is None:
         args.dcrd_p2p_port = net.PARENT.P2P_PORT

@@ -7,7 +7,7 @@ import p2pool
 from p2pool.decred import data as decred_data
 from p2pool.util import deferral, jsonrpc
 
-@deferral.retry('Error while checking Bitcoin connection:', 1)
+@deferral.retry('Error while checking Decred connection:', 1)
 @defer.inlineCallbacks
 def check(dcrd, net):
     if not (yield net.PARENT.RPC_CHECK(dcrd)):
@@ -19,6 +19,26 @@ def check(dcrd, net):
     if version_check_result is not None:
         print >>sys.stderr, '    ' + version_check_result
         raise deferral.RetrySilentlyException()
+
+@deferral.retry('Error while checking Decred connection:', 1)
+@defer.inlineCallbacks
+def checkwallet(dcrdwallet, net):
+    print('wallet_check')
+    wallet_dcrd_server_check_result = (yield dcrdwallet.rpc_walletinfo())['daemonconnected']
+    if wallet_dcrd_server_check_result == False:
+        print >>sys.stderr, '    ' + wallet_dcrd_server_check_result
+        raise deferral.RetrySilentlyException()
+        
+
+#     if not (yield net.PARENT.RPC_CHECK(dcrd)):
+#         print >>sys.stderr, "    Check failed! Make sure that you're connected to the right dcrd with --dcrd-rpc-port!"
+#         raise deferral.RetrySilentlyException()
+#     version_check_result = net.VERSION_CHECK((yield dcrd.rpc_getinfo())['version'])
+#     if version_check_result == True: version_check_result = None # deprecated
+#     if version_check_result == False: version_check_result = 'Coin daemon too old! Upgrade!' # deprecated
+#     if version_check_result is not None:
+#         print >>sys.stderr, '    ' + version_check_result
+#         raise deferral.RetrySilentlyException()
 
 @deferral.retry('Error getting work from dcrd:', 3)
 @defer.inlineCallbacks
@@ -47,73 +67,43 @@ def getwork(dcrd, use_getblocktemplate=False): # TODO: remove getblocktemplate c
         except jsonrpc.Error_for_code(-32601): # Method not found
             print >>sys.stderr, 'Error: Bitcoin version too old! Upgrade to v0.5 or newer!'
             raise deferral.RetrySilentlyException()
-    #gf: getrawmempool
-#     packed_transactions = [(x['data'] if isinstance(x, dict) else x).decode('hex') for x in work['transactions']]
-#     if 'height' not in work:
-#         work['height'] = (yield dcrd.rpc_getblock(work['previousblockhash']))['height'] + 1
-#     elif p2pool.DEBUG:
-#         assert work['height'] == (yield dcrd.rpc_getblock(work['previousblockhash']))['height'] + 1
-#     defer.returnValue(dict(
-#         version=work['version'],
-#         previous_block=int(work['previousblockhash'], 16),
-#         transactions=map(decred_data.tx_type.unpack, packed_transactions),
-#         transaction_hashes=map(decred_data.hash256, packed_transactions),
-#         transaction_fees=[x.get('fee', None) if isinstance(x, dict) else None for x in work['transactions']],
-#         subsidy=work['coinbasevalue'],
-#         time=work['time'] if 'time' in work else work['curtime'],
-#         bits=decred_data.FloatingIntegerType().unpack(work['bits'].decode('hex')[::-1]) if isinstance(work['bits'], (str, unicode)) else decred_data.FloatingInteger(work['bits']),
-#         coinbaseflags=work['coinbaseflags'].decode('hex') if 'coinbaseflags' in work else ''.join(x.decode('hex') for x in work['coinbaseaux'].itervalues()) if 'coinbaseaux' in work else '',
-#         height=work['height'],
-#         last_update=time.time(),
-#         use_getblocktemplate=use_getblocktemplate,
-#         latency=end - start,
-#     ))
     #
-    # what we have is raw transaction hashes in a list
+    # Insert old bitcoin `getblocktemplate` insdtead if the `work`
     #
-    #<-gf:
-    transaction_hashes = [x for x in work]
-    
-    transactions = [work[th] for th in transaction_hashes]
-    packed_transactions = [x.decode('hex') for x in work]
+    from p2pool.decred.test.bitcoin_getblocktemplate_work import zcoin_work
+    real_work = work
+    work = zcoin_work
+    #
+    # adjust height and prev height 
+    #
+    h = (yield dcrd.rpc_getbestblock())['height']
+    work['height'] = h
+    pbh = (yield dcrd.rpc_getblockhash(h-1))
+    work['previousblockhash'] = pbh
+    #
+    #
+    #
+    packed_transactions = [(x['data'] if isinstance(x, dict) else x).decode('hex') for x in work['transactions']]
     if 'height' not in work:
-        work['height'] = currrblock = (yield dcrd.rpc_getbestblock()) ['height']
-        work['previous_block'] = peviousblockhash = (yield (dcrd.rpc_getblockhash(work['height'] -1)))
-        print 'current block number:', currrblock, 'previous block hash', peviousblockhash
-#     elif p2pool.DEBUG:
-#         assert work['height'] == (yield dcrd.rpc_getblock(work['previousblockhash']))['height'] + 1
-#     defer.returnValue(dict(
-#         version=work['version'],
-#         previous_block=int(work['height'] - 1),
-#         transactions=map(decred_data.tx_type.unpack, packed_transactions),
-#         transaction_hashes=map(decred_data.hash256, packed_transactions),
-#         transaction_fees=[x.get('fee', None) if isinstance(x, dict) else None for x in work],
-#         subsidy=work['coinbasevalue'],
-#         time=work['time'],
-#         bits=decred_data.FloatingIntegerType().unpack(work['bits'].decode('hex')[::-1]) if isinstance(work['bits'], (str, unicode)) else decred_data.FloatingInteger(work['bits']),
-#         coinbaseflags=work['coinbaseflags'].decode('hex') if 'coinbaseflags' in work else ''.join(x.decode('hex') for x in work['coinbaseaux'].itervalues()) if 'coinbaseaux' in work else '',
-#         height=work['height'],
-#         last_update=time.time(),
-#         use_getblocktemplate=use_getblocktemplate,
-#         latency=end - start,
-#     ))
-
-    # Just for test at the moment - to see what data in what format is needed
-    defer.returnValue(dict(
-        version=1,
-        previous_block=work['previous_block'],
-        transactions=transactions,
-        transaction_hashes=transaction_hashes,
-        transaction_fees=0,
-        subsidy=6.1,
-        time=time.time(),
-        bits=0,
-        coinbaseflags=0,
+        work['height'] = (yield dcrd.rpc_getblock(work['previousblockhash']))['height'] + 1
+    elif p2pool.DEBUG:
+        assert work['height'] == (yield dcrd.rpc_getblock(work['previousblockhash']))['height'] + 1
+    returnDict = dict(
+        version=work['version'],
+        previous_block=int(work['previousblockhash'], 16),
+        transactions=map(decred_data.tx_type.unpack, packed_transactions),
+        transaction_hashes=map(decred_data.hash256, packed_transactions),
+        transaction_fees=[x.get('fee', None) if isinstance(x, dict) else None for x in work['transactions']],
+        subsidy=work['coinbasevalue'],
+        time=work['time'] if 'time' in work else work['curtime'],
+        bits=decred_data.FloatingIntegerType().unpack(work['bits'].decode('hex')[::-1]) if isinstance(work['bits'], (str, unicode)) else decred_data.FloatingInteger(work['bits']),
+        coinbaseflags=work['coinbaseflags'].decode('hex') if 'coinbaseflags' in work else ''.join(x.decode('hex') for x in work['coinbaseaux'].itervalues()) if 'coinbaseaux' in work else '',
         height=work['height'],
         last_update=time.time(),
         use_getblocktemplate=use_getblocktemplate,
         latency=end - start,
-    ))
+    )
+    defer.returnValue(returnDict)
 
 
 @deferral.retry('Error submitting primary block: (will retry)', 10, 10)
