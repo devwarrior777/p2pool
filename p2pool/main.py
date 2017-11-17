@@ -129,7 +129,7 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
         
         print 'Determining payout address...'
         pubkeys = keypool()
-        if args.pubkey_hash is None and args.address != 'dynamic':
+        if args.pubkey_hash is None and args.address != 'dynamic':                  # TODO: Always use dynamic
             address_path = os.path.join(datadir_path, 'cached_payout_address')
             
             if os.path.exists(address_path):
@@ -138,25 +138,46 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
                 print '    Loaded cached address: %s...' % (address,)
             else:
                 address = None
-            
-            if address is not None:
-                res = yield deferral.retry('Error validating cached address:', 5)(lambda: dcrdwallet.rpc_validateaddress(address))()
-                if not res['isvalid'] or not res['ismine']:
-                    print '    Cached address is either invalid or not controlled by local dcrd!'
-                    address = None
-            
+                
+            #gf: decred wallet address->
+#             if address is not None:
+#                 res = yield deferral.retry('Error validating cached address:', 5)(lambda: dcrdwallet.rpc_validateaddress(address))()
+#                 if not res['isvalid'] or not res['ismine']:
+#                     print '    Cached address is either invalid or not controlled by local dcrd!'
+#                     address = None
+#             
+#             if address is None:
+#                 print '    Getting payout address from dcrwallet...not a great idea'
+#                 address = yield deferral.retry('Error getting payout address from local dcrwallet:', 5)(lambda: dcrdwallet.rpc_getaccountaddress('default'))()
+#             with open(address_path, 'wb') as f:
+#                 f.write(address)
+#             
+#             my_pubkey_hash = decred_data.address_to_pubkey_hash(address, net.PARENT)
+
             if address is None:
-                print '    Getting payout address from dcrd...'
-                #gf->
-                #address = yield deferral.retry('Error getting payout address from dcrd:', 5)(lambda: dcrdwallet.rpc_getaccountaddress('p2pool'))()
-                address = yield deferral.retry('Error getting payout address from dcrd:', 5)(lambda: dcrdwallet.rpc_getaccountaddress('default'))()
-                #<-gf
+                print '    Getting payout address from dcrwallet...not a great idea...'
+                address = yield deferral.retry('Error getting payout address from local dcrwallet:', 5) \
+                                                (lambda: dcrdwallet.rpc_getaccountaddress('default'))()
             with open(address_path, 'wb') as f:
                 f.write(address)
             
-            my_pubkey_hash = decred_data.address_to_pubkey_hash(address, net.PARENT)
-            print '    ...success! Payout address:', decred_data.pubkey_hash_to_address(my_pubkey_hash, net.PARENT)
+            if address is None:
+                raise Exception('Failed to get an address from local wallet')
+            
+            res = yield deferral.retry('Error validating address:', 5) \
+                                        (lambda: dcrdwallet.rpc_validateaddress(address))()
+            if not res['isvalid'] or not res['ismine']:
+                print '    Local address is either invalid or not controlled by local dcrwallet!'
+                address = None
+            
+            if address is None:
+                raise Exception('Failed to validate local wallet address')
+            
+            my_pubkey_hash = res['pubkeyaddr']
+            print '    ...success! Payout address:', my_pubkey_hash
             print
+            #<-gf:
+            
             pubkeys.addkey(my_pubkey_hash)
         elif args.address != 'dynamic':
             my_pubkey_hash = args.pubkey_hash
