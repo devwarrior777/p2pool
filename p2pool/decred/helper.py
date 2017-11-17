@@ -70,7 +70,7 @@ def getwork(dcrd, use_getblocktemplate=False): # TODO: remove getblocktemplate c
 
     
     #
-    # what we have is raw transaction hashes in a list
+    # what we have is string transaction hashes in a list
     #
     transaction_hashes = [x for x in mpool]
     
