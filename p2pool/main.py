@@ -118,8 +118,6 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
         deferral.RobustLoopingCall(poll_warnings).start(20*60)
         
         print '    ...success!'
-#         print '    Current block hash: %x' % (temp_work['previous_block'],)
-#         print '    Current block height: %i' % (temp_work['height'] - 1,)
         print '    Current block hash: {}'.format(temp_work['previous_block'])
         print '    Current block height: {}'.format(temp_work['height'] - 1)
         print
@@ -139,21 +137,6 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
             else:
                 address = None
                 
-            #gf: decred wallet address->
-#             if address is not None:
-#                 res = yield deferral.retry('Error validating cached address:', 5)(lambda: dcrdwallet.rpc_validateaddress(address))()
-#                 if not res['isvalid'] or not res['ismine']:
-#                     print '    Cached address is either invalid or not controlled by local dcrd!'
-#                     address = None
-#             
-#             if address is None:
-#                 print '    Getting payout address from dcrwallet...not a great idea'
-#                 address = yield deferral.retry('Error getting payout address from local dcrwallet:', 5)(lambda: dcrdwallet.rpc_getaccountaddress('default'))()
-#             with open(address_path, 'wb') as f:
-#                 f.write(address)
-#             
-#             my_pubkey_hash = decred_data.address_to_pubkey_hash(address, net.PARENT)
-
             if address is None:
                 print '    Getting payout address from dcrwallet...not a great idea...'
                 address = yield deferral.retry('Error getting payout address from local dcrwallet:', 5) \
@@ -179,7 +162,7 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
             #<-gf:
             
             pubkeys.addkey(my_pubkey_hash)
-        elif args.address != 'dynamic':
+        elif args.address != 'dynamic':                 # Maybe this is safer .. but no checks...
             my_pubkey_hash = args.pubkey_hash
             print '    ...success! Payout address:', decred_data.pubkey_hash_to_address(my_pubkey_hash, net.PARENT)
             print

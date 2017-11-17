@@ -185,7 +185,7 @@ class Node(object):
         def work_poller():
             while stop_signal.times == 0:
                 flag = self.factory.new_block.get_deferred()
-                try:
+                try:                                           # TODO: Check if `use_getblocktemplate` can be removed
                     self.dcrd_work.set((yield helper.getwork(self.dcrd, self.dcrd_work.value['use_getblocktemplate'])))
                 except:
                     log.err()

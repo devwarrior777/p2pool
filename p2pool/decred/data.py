@@ -9,8 +9,9 @@ from p2pool.util import math, pack
 #gf: blake256 ->
 from p2pool.decred.blake import BLAKE
 
+blake256 = BLAKE(256)
+
 def hash256(data):
-    blake256 = BLAKE(256)
     return pack.IntType(256).unpack(blake256.digest(data))
 
 # def hash256(data):
@@ -18,13 +19,14 @@ def hash256_sha(data):
     return pack.IntType(256).unpack(hashlib.sha256(hashlib.sha256(data).digest()).digest())
 #<-gf:
 
+#gf: blake or sha256d here?
 def hash160(data):
     if data == '04ffd03de44a6e11b9917f3a29f9443283d9871c9d743ef30d5eddcd37094b64d1b3d8090496b53256786bf5c82932ec23c3b74d9f05a6f95a8b5529352656664b'.decode('hex'):
         return 0x384f570ccc88ac2e7e00b026d1690a3fca63dd0 # hack for people who don't have openssl - this is the only value that p2pool ever hashes
     return pack.IntType(160).unpack(hashlib.new('ripemd160', hashlib.sha256(data).digest()).digest())
 
 class ChecksummedType(pack.Type):
-    def __init__(self, inner, checksum_func=lambda data: hashlib.sha256(hashlib.sha256(data).digest()).digest()[:4]):
+    def __init__(self, inner, checksum_func=lambda data: blake256.digest(data)[:4]):
         self.inner = inner
         self.checksum_func = checksum_func
     
@@ -318,3 +320,20 @@ def script2_to_human(script2, net):
             return 'Address. Address: %s' % (pubkey_hash_to_address(pubkey_hash, net),)
     
     return 'Unknown. Script: %s'  % (script2.encode('hex'),)
+
+if __name__=="__main__":
+    d = b'\x00'
+    h = blake256.digest(d)
+    print("hash of '{0}' is \n'{1}' \nstr {2}\n".format(d.encode('hex'),h,h.encode('hex')))
+    # Expected: 0ce8d4ef4dd7cd8d62dfded9d4edb0a774ae6a41929a74da23109e8f11139c87
+    
+    d = b'\x00'*72             # nought is nought
+    h = blake256.digest(d)
+    print("hash of '{0}' is \n'{1}' \nstr {2}\n".format(d.encode('hex'),h,h.encode('hex')))
+    # Expected: 0ce8d4ef4dd7cd8d62dfded9d4edb0a774ae6a41929a74da23109e8f11139c87
+
+    
+    l = long(0x00000000000000000000000000000000000000000000000000000000000)
+    h = hash256(l)
+    print("hash of '{0}' is \n{1} \nhex: {2}'\n".format(l,h,hex(h)))
+    

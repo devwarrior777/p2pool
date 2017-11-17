@@ -290,9 +290,15 @@ class ComposedType(Type):
         self.record_type = get_record(k for k, v in self.fields)
     
     def read(self, file):
+        import traceback, sys
         item = self.record_type()
         for key, type_ in self.fields:
-            item[key], file = type_.read(file)
+            try:
+                item[key], file = type_.read(file)
+            except Exception as err:
+                print 'bug'
+                tb = traceback.format_exc()
+                print(tb)
         return item, file
     
     def write(self, file, item):
@@ -307,7 +313,10 @@ class PossiblyNoneType(Type):
         self.inner = inner
     
     def read(self, file):
-        value, file = self.inner.read(file)
+        try:
+            value, file = self.inner.read(file)
+        except:
+            print 'bug 2'
         return None if value == self.none_value else value, file
     
     def write(self, file, item):
