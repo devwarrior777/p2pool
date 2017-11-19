@@ -108,7 +108,7 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
         dcrdwallet = jsonrpc.HTTPProxy(walleturl, dict(Authorization='Basic ' + base64.b64encode(args.dcrd_rpc_username + ':' + args.dcrd_rpc_password)), timeout=30)
         yield helper.checkwallet(dcrdwallet, net)
 
-        temp_work = yield helper.getwork(dcrd)
+        temp_work = yield helper.getwork(dcrd, use_getblocktemplate=True)   # switched on getblocktemplate in dcrd
         
         dcrd_getinfo_var = variable.Variable(None)
         @defer.inlineCallbacks

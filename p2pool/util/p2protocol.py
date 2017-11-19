@@ -25,8 +25,7 @@ class Protocol(protocol.Protocol):
         self.ignore_trailing_payload = ignore_trailing_payload
         
     def getChecksumForPayload(self, payload):
-        blake256 = BLAKE(256)
-        hashed_payload = blake256.digest(payload)
+        hashed_payload = BLAKE(256).digest(payload)
         checksum = hashed_payload[:4]
         return checksum
     

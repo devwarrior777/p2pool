@@ -17,93 +17,58 @@ from p2pool.decred.data import hash256_sha
 #     return pack.IntType(256).unpack(hashlib.sha256(hashlib.sha256(data).digest()).digest())
 
 def hash256(data):
-    blake256 = BLAKE(256)
-#     return pack.IntType(256).unpack(blake256.digest(data))
-    return blake256.digest(data)
-
+    return pack.IntType(256).unpack(BLAKE(256).digest(data))
 
 def getChecksumForPayload(payload):
-    blake256 = BLAKE(256)
-    hashed_payload = blake256.digest(payload)
+    hashed_payload = BLAKE(256).digest(payload)
     print(hexlify(hashed_payload))
     checksum = hashed_payload[:4]
     return checksum
 
 if __name__ == '__main__':
-#     payload = b'\x00'
-#     print payload, len(payload)
-#     checksum = getChecksumForPayload(payload)
-#     print "checksum raw: '{}' hexstr: {}".format(checksum, hexlify(checksum))    
-#     # Expected: [0ce8d4ef]..4dd7cd8d62dfded9d4edb0a774ae6a41929a74da23109e8f11139c87
-#     print
-#     payload = 'Kilroy was here!'
-#     print payload, len(payload)
-#     checksum = getChecksumForPayload(payload)
-#     print "checksum raw: '{}' hexstr: {}".format(checksum, hexlify(checksum))    
-#     # Expected: [b25c02cc]..fa1f664d25a15d999b56a4be1ad84a029a96be5d654387a2def99916
-#     
+    payload = b'\x00'
+    print payload, len(payload)
+    checksum = getChecksumForPayload(payload)
+    print "checksum raw: '{}' hexstr: {}".format(checksum, hexlify(checksum))    
+    # Expected: [0ce8d4ef]..4dd7cd8d62dfded9d4edb0a774ae6a41929a74da23109e8f11139c87
+    print
+    payload = 'Kilroy was here!'
+    print payload, len(payload)
+    checksum = getChecksumForPayload(payload)
+    print "checksum raw: '{}' hexstr: {}".format(checksum, hexlify(checksum))    
+    # Expected: [b25c02cc]..fa1f664d25a15d999b56a4be1ad84a029a96be5d654387a2def99916
+     
 #     print '-------'
 #     print 'sha256d'
 #     print '-------'
-#     
+#      
 #     rawtx = "0100000001a23fbfc21a19afa187826326da191f2d9f92e8b4ca5516004d1e6b578088537e010000006b483045022100ae364851313e1d690c898b2ae86441906d73a98b87f08e78f8836d3514e7e784022050f8bd560e8123c448a4075fdb8af9ea80b7db5d82e027f02b6f09c341e68267012103dde4f4c1be0f0331335c599ad47981e7a662eb000fff7a947fef2981abed7b6dfeffffff02f45a0f00000000001976a914db34e5c559265f0513e883f547937da21944022a88ac08436923000000001976a9147e65189f60382c42fc987916d1a2e1713056cc0c88acceee0000"
 #     print rawtx
 #     rawtx_decoded = rawtx.decode('hex')
 #     hash = hash256_sha(rawtx_decoded)
 #     print "hash", hex(hash)    
 #     # Expected: 0xb483b9e5142c2ff82c4157fab714bec38987e45c15fc56449a6950dfce41dc75L
-# 
+#  
 #     rawtx = "01000000011df529c1068fa32591bc072d1f8dfbb731085034e653774f43a864c30f93e0e1000000006b483045022100fcde6b2df82e17f7454e571916636ec1d875bc03261a773c3aea6705852f84be022075060c117b385cf73d188c1e25ac39b9bfc7970f14985eda6879bef412c5e659012103c892a5dacdc82e2b04bfb12284da078105cc6256301a54e7a0c6407a5545e4e2feffffff025aeeb6e7000000001976a9147a887ded58fc52735d490d1105d6f81c0237b13388ac85298f00000000001976a914a3f9a29630b6f1afa09cad634c6300e4ec0e132f88acceee0000"
 #     print rawtx
 #     rawtx_decoded = rawtx.decode('hex')
 #     hash = hash256_sha(rawtx_decoded)
 #     print "hash", hex(hash)    
 #     # Expected: 0x73dc87f378cc36ccbd00048cebf85a95c86a9e481b4c7920808e819b02ad6132L
-# 
-#     print '--------'
-#     print 'blake256'
-#     print '--------'
-# 
-#     rawtx = '01000000020000000000000000000000000000000000000000000000000000000000000000ffffffff00ffffffffb5221eb1fb1341c5ce0d479804bd53427a76612a79ffc84100efc3e922d67d420000000001ffffffff0400000000000000000000266a2403a68323fb0b5a8d32b2841cd5e8fa5d14d2ab732f761cee6d72270000000000dab0020000000000000000000000086a0601000600000097f348000000000000001abb76a914cf6c904e54d68952c61307d42b3870bfa530aa9188ac2aeb1d080100000000001abb76a914a7e94ff7a271bf40718be28a4f622fa678d18f6388ac000000000000000002e8afcc030000000000000000ffffffff020000ffffffffffffffff00000000ffffffff904730440220124ccfb45d1968240c6bc6012e733b7a08de5e0cfcc7af7de42bc4010c180d63022040d9dbb722dec3231e7d579cf946c823fc40ac7b1695f2182ee3d8b6fb91d0a10147512102f5d7716ef8fd5b5ff62a33f4536a5a0cba44d62a42c2cf88bc08794f68a5643f21038684cb5209330a861a5466b9b0fe682559fe916498e21586b00834fab616127c52ae'
-#     print rawtx
-#     rawtx_decoded = rawtx.decode('hex')
-#     hash = hash256(rawtx_decoded)
-#     print "hash", hex(hash)    
-#     hash = hash256(rawtx)
-#     print "hash", hex(hash)    
-# 
-#     rawtx = '01000000020000000000000000000000000000000000000000000000000000000000000000ffffffff00ffffffffe27be0446efbf9c19c58dcf1f11e65ad84cefef6da19001d39f24b99395a375c0000000001ffffffff0400000000000000000000266a245a6ece3422a1a1cfe3288438b5b2a9e3301f19eddf44c769e5ff860000000000e3b0020000000000000000000000086a0605000600000096f348000000000000001abb76a9147f686bc0e548bbb92f487db6da070e43a341172888ac2beb1d080100000000001abb76a9149d8e8bdc618035be32a14ab752af2e331f9abf3688ac000000000000000002e8afcc030000000000000000ffffffff020000da2e9a0401000000d9a902000a00000090473044022028d014fbf1fad03e2999adf5dce328ec0ddf7147e528c0a9c11093c9b855a4bd02207857e3fea8fdaf9954ada5c183a0e746ff71c34cc6ed458fc62272942a279a5f0147512102fe82f22f2e5bc1be0b67d85afef87329fc1c4512f30a47ce459c78bd7502ba9821022cf2f038dbb85f0a35fed9ac147e58d9ee85a80f8827085f51ef4129a02d458652ae'
-#     print rawtx
-#     rawtx_decoded = rawtx.decode('hex')
-#     hash = hash256(rawtx_decoded)
-#     print "hash", hex(hash)    
-#     hash = hash256(rawtx)
-#     print "hash", hex(hash)    
-# 
-#     rawtx = '01000000020000000000000000000000000000000000000000000000000000000000000000ffffffff00ffffffff1ee026755477ac6c06dc25180b93497e2f4624760f81abf52794bd24631da0570000000001ffffffff0400000000000000000000266a245a6ece3422a1a1cfe3288438b5b2a9e3301f19eddf44c769e5ff860000000000e3b0020000000000000000000000086a0605000600000097f348000000000000001abb76a9147f686bc0e548bbb92f487db6da070e43a341172888ac7583c3f40000000000001abb76a9149d8e8bdc618035be32a14ab752af2e331f9abf3688ac000000000000000002e8afcc030000000000000000ffffffff02000025c73ff1000000000baf02000400000091483045022100b7aa7948367454694baa5238fde237b5f2630c6dd25fd7321a1290121776234d02202b47c6480a15ba8e2d38715ca3a162a62b3c43ce253325b58fd0a3f4785aa73d0147512102fe82f22f2e5bc1be0b67d85afef87329fc1c4512f30a47ce459c78bd7502ba9821022cf2f038dbb85f0a35fed9ac147e58d9ee85a80f8827085f51ef4129a02d458652ae'
-#     print rawtx
-#     rawtx_decoded = rawtx.decode('hex')
-#     hash = hash256(rawtx_decoded)
-#     print "hash", hex(hash)    
-#     hash = hash256(rawtx)
-#     print "hash", hex(hash)    
+ 
+    print '--------'
+    print 'blake256'
+    print '--------'
+ 
+    raw = "01000000020000000000000000000000000000000000000000000000000000000000000000ffffffff00ffffffff59693b8cd215ee8b5b9d2e4c6126a4e0de13f577f797a6c72845ea65de11e1d10000000001ffffffff0400000000000000000000266a24d9111648fa784ecf8d40f154e6c3341d08b63fe18bb28c6ef85009000000000043b3020000000000000000000000086a06050006000000583d48000000000000001abb76a9147f686bc0e548bbb92f487db6da070e43a341172888ac51b934050100000000001abb76a9149d8e8bdc618035be32a14ab752af2e331f9abf3688ac000000000000000002e8afcc030000000000000000ffffffff020000ffffffffffffffff00000000ffffffff9047304402202220ff995b67ae77700b7df0a38597ed9930a3181adad2cd35ef9e784539bade02201eeeb54b0d21962958f75bf7dfe1ee176bcd5a011a7cc1a9edc7476f4f07c0250147512102fe82f22f2e5bc1be0b67d85afef87329fc1c4512f30a47ce459c78bd7502ba9821022cf2f038dbb85f0a35fed9ac147e58d9ee85a80f8827085f51ef4129a02d458652ae"
 
-    expected = 'e7b2344454914b1c56db40f63692af1894727de9c8739cea02dd4dbd7a441819'
+    raw2 = ""
+    print raw2[:128], '...'
+    tx = raw2.decode('hex')
+    hsh = hash256(tx)
+    print hsh
+        
+    print 'done', len(raw)
 
-    rawtx = b"01000000020000000000000000000000000000000000000000000000000000000000000000ffffffff00ffffffffbfaa48a611904d362e669be30842c420d9d7e8e7f3b675a1e5822e374cb724b30000000001ffffffff0400000000000000000000266a246f3af452f7c58370cf0642a64f943624c2f4f8066aa684c6cfc50c000000000020b1020000000000000000000000086a06050006000000daab49000000000000001abb76a9147f686bc0e548bbb92f487db6da070e43a341172888ac319dd81e0100000000001abb76a9149d8e8bdc618035be32a14ab752af2e331f9abf3688ac000000000000000002e8afcc030000000000000000ffffffff020000ffffffffffffffff00000000ffffffff914830450221008b0b9020c35f76a0fcf465344ef942e1d14a6384c987782727f1a8a87fe5444802202e23e215d2e940b6c4298c4e60894e452bce036895976462e83cf378b449c6b90147512102fe82f22f2e5bc1be0b67d85afef87329fc1c4512f30a47ce459c78bd7502ba9821022cf2f038dbb85f0a35fed9ac147e58d9ee85a80f8827085f51ef4129a02d458652ae"
-    print rawtx[:128], '...'
-    last = (len(rawtx)/2) - 1
-    for i in range(last):
-        res = hash256(rawtx)
-        resh = hexlify(res)
-        print(resh)
-        for x in range(3):
-            if resh[x] != expected[x]:
-                break
-                print "Ok"
-        rawtx = rawtx[:-2]
-        print rawtx
-    
-    print 'e7b2344454914b1c56db40f63692af1894727de9c8739cea02dd4dbd7a441819'
     
     
