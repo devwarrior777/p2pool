@@ -99,22 +99,103 @@ address_type = pack.ComposedType([
     ('port', pack.IntType(16, 'big')),
 ])
 
+#gf->
+# tx_type = pack.ComposedType([
+#     ('version', pack.IntType(32)),
+#     ('tx_ins', pack.ListType(pack.ComposedType([
+#         ('previous_output', pack.PossiblyNoneType(dict(hash=0, index=2**32 - 1), pack.ComposedType([
+#             ('hash', pack.IntType(256)),
+#             ('index', pack.IntType(32)),
+#         ]))),
+#         ('script', pack.VarStrType()),
+#         ('sequence', pack.PossiblyNoneType(2**32 - 1, pack.IntType(32))),
+#     ]))),
+#     ('tx_outs', pack.ListType(pack.ComposedType([
+#         ('value', pack.IntType(64)),
+#         ('script', pack.VarStrType()),
+#     ]))),
+#     ('lock_time', pack.IntType(32)),
+# ])
+
+#
+# Dummy type 00 to satisfy the interpreter - TODO: FIXME
+#
 tx_type = pack.ComposedType([
     ('version', pack.IntType(32)),
     ('tx_ins', pack.ListType(pack.ComposedType([
         ('previous_output', pack.PossiblyNoneType(dict(hash=0, index=2**32 - 1), pack.ComposedType([
             ('hash', pack.IntType(256)),
             ('index', pack.IntType(32)),
+            ('tree', pack.IntType(8)),
         ]))),
-        ('script', pack.VarStrType()),
         ('sequence', pack.PossiblyNoneType(2**32 - 1, pack.IntType(32))),
     ]))),
     ('tx_outs', pack.ListType(pack.ComposedType([
         ('value', pack.IntType(64)),
+        ('version', pack.IntType(16)),
         ('script', pack.VarStrType()),
     ]))),
     ('lock_time', pack.IntType(32)),
+    ('expiry', pack.IntType(32)),
 ])
+
+
+###############################################################################
+# https://docs.decred.org/advanced/transaction-details/
+###############################################################################
+
+#
+# 0 (Full Serialization) - The transaction's prefix is located immediately before it's witness data
+#
+tx_type_0 = pack.ComposedType([
+    ('version', pack.IntType(32)),
+    ('tx_ins', pack.ListType(pack.ComposedType([
+        ('previous_output', pack.PossiblyNoneType(dict(hash=0, index=2**32 - 1), pack.ComposedType([
+            ('hash', pack.IntType(256)),
+            ('index', pack.IntType(32)),
+            ('tree', pack.IntType(8)),
+        ]))),
+        ('sequence', pack.PossiblyNoneType(2**32 - 1, pack.IntType(32))),
+    ]))),
+    ('tx_outs', pack.ListType(pack.ComposedType([
+        ('value', pack.IntType(64)),
+        ('version', pack.IntType(16)),
+        ('script_pk', pack.VarStrType()),
+    ]))),
+    ('lock_time', pack.IntType(32)),
+    ('expiry', pack.IntType(32)),
+    
+    # Witness Inputs
+    ('wtx_ins', pack.ListType(pack.ComposedType([
+        ('value', pack.IntType(64)),
+        ('block_height', pack.IntType(32)),
+        ('block_index', pack.IntType(32)),
+        ('script_sig', pack.VarStrType()),
+    ]))),
+])
+
+#
+# 1 (No witness) - The transaction's prefix is the only data present
+#
+tx_type_1 = pack.ComposedType([
+    ('version', pack.IntType(32)),
+    ('tx_ins', pack.ListType(pack.ComposedType([
+        ('previous_output', pack.PossiblyNoneType(dict(hash=0, index=2**32 - 1), pack.ComposedType([
+            ('hash', pack.IntType(256)),
+            ('index', pack.IntType(32)),
+            ('tree', pack.IntType(8)),
+        ]))),
+        ('sequence', pack.PossiblyNoneType(2**32 - 1, pack.IntType(32))),
+    ]))),
+    ('tx_outs', pack.ListType(pack.ComposedType([
+        ('value', pack.IntType(64)),
+        ('version', pack.IntType(16)),
+        ('script', pack.VarStrType()),
+    ]))),
+    ('lock_time', pack.IntType(32)),
+    ('expiry', pack.IntType(32)),
+])
+#<-gf:
 
 merkle_link_type = pack.ComposedType([
     ('branch', pack.ListType(pack.IntType(256))),
@@ -320,6 +401,9 @@ def script2_to_human(script2, net):
     return 'Unknown. Script: %s'  % (script2.encode('hex'),)
 
 if __name__=="__main__":
+    #     
+    # Test - Blake256
+    #     
     d = b'\x00'
     h = BLAKE(256).digest(d)
     print("hash of '{0}' is \n'{1}' \nstr {2}\n".format(d.encode('hex'),h,h.encode('hex')))
@@ -329,9 +413,27 @@ if __name__=="__main__":
     h = BLAKE(256).digest(d)
     print("hash of '{0}' is \n'{1}' \nstr {2}\n".format(d.encode('hex'),h,h.encode('hex')))
     # Expected: 0ce8d4ef4dd7cd8d62dfded9d4edb0a774ae6a41929a74da23109e8f11139c87
-
-    
+   
     l = long(0x00000000000000000000000000000000000000000000000000000000000)
     h = hash256(l)
     print("hash of '{0}' is \n{1} \nhex: {2}'\n".format(l,h,hex(h)))
+    
+    #     
+    # Test - Parse Transaction
+    #     
+    data = "01000000020e5551a794baacdc45c453d8ce3d511058dc6618977884f685bc3cc878bbb3bf0100000000ffffffffe14810a5123cdddc98e2a1040cd584ac2a172a2c2cda36d98a94e34bf12985ba0200000001ffffffff02c347dac00100000000001976a9145ed0b86ae903b337a58203b84c98aa004473d61e88ac7cb097570100000000001976a9140459aa94d72597122586c011c5e29d3a7a9db3e388ac0000000000000000021f74a71a01000000b1dc0200030000006a47304402201b12b4f88d172ea24b94ef71b68c25d83072239c37aa70205f56a8c83adeb21c0220151851dc0a2ed80f86bc96dab3c2d190a81296be8ca83dd8578db1ce56a405b7012102a3f6cf568ed663348118f7dfd412253b61a3e93d4eb6cf3ce9046b3c18e4e393cc27cbfd01000000b4db0200020000006b483045022100d194f05a7a2a5c54744cf305b5e3d6a925f4ed300c924eff135b8719bd0048c8022074da56a7d7035393fce62ccd238a972a3f332b15f588bed62156ea5082dc4d8a012102c074fe37ac06734bfd2b8aeedc23e38c0487418d0aa885af285b31ccebed9fec"
+    packed_tx = data.decode('hex')
+    transactions = tx_type_0.unpack(packed_tx, ignore_trailing=False)
+    
+    
+    #     
+    # Test - Parse Block Header
+    #     
+    block_header = "06000000fc2cfb43c94bc45820be264b0ce496ff333aca8fe82be3b903ad5c06000000002ee7069baed869c043a2b8c6317a7947d14a883d226571362b1442d5d72ebcd0a7b12cbfed88d52b5f49d7f8277263f216353f4d417d923f5e7b5dbdc5c2ef3c0100f4e0b1d5e96305000c00281600003a02091ccf7ab912010000008bb50200852b0000782f115a00000000000000000000000000000000000000000000000000000000000000000000000006000000"
+    packed_header = block_header.decode('hex')
+    header_fields = map(block_header_type.unpack, packed_header)
+    
+    for f in header_fields:
+        print(f)
+    
     
