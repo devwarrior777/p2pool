@@ -7,6 +7,7 @@ import warnings
 import p2pool
 from p2pool.util import math, pack
 from p2pool.decred.blake import BLAKE
+import struct
 
 
 def hash256(data):
@@ -117,28 +118,6 @@ address_type = pack.ComposedType([
 #     ('lock_time', pack.IntType(32)),
 # ])
 
-#
-# Dummy type 00 to satisfy the interpreter - TODO: FIXME
-#
-tx_type = pack.ComposedType([
-    ('version', pack.IntType(32)),
-    ('tx_ins', pack.ListType(pack.ComposedType([
-        ('previous_output', pack.PossiblyNoneType(dict(hash=0, index=2**32 - 1), pack.ComposedType([
-            ('hash', pack.IntType(256)),
-            ('index', pack.IntType(32)),
-            ('tree', pack.IntType(8)),
-        ]))),
-        ('sequence', pack.PossiblyNoneType(2**32 - 1, pack.IntType(32))),
-    ]))),
-    ('tx_outs', pack.ListType(pack.ComposedType([
-        ('value', pack.IntType(64)),
-        ('version', pack.IntType(16)),
-        ('script', pack.VarStrType()),
-    ]))),
-    ('lock_time', pack.IntType(32)),
-    ('expiry', pack.IntType(32)),
-])
-
 
 ###############################################################################
 # https://docs.decred.org/advanced/transaction-details/
@@ -155,7 +134,7 @@ tx_type_0 = pack.ComposedType([
             ('index', pack.IntType(32)),
             ('tree', pack.IntType(8)),
         ]))),
-        ('sequence', pack.PossiblyNoneType(2**32 - 1, pack.IntType(32))),
+        ('sequence', pack.IntType(32)),
     ]))),
     ('tx_outs', pack.ListType(pack.ComposedType([
         ('value', pack.IntType(64)),
@@ -164,8 +143,9 @@ tx_type_0 = pack.ComposedType([
     ]))),
     ('lock_time', pack.IntType(32)),
     ('expiry', pack.IntType(32)),
-    
+    #
     # Witness Inputs
+    #
     ('wtx_ins', pack.ListType(pack.ComposedType([
         ('value', pack.IntType(64)),
         ('block_height', pack.IntType(32)),
@@ -185,7 +165,7 @@ tx_type_1 = pack.ComposedType([
             ('index', pack.IntType(32)),
             ('tree', pack.IntType(8)),
         ]))),
-        ('sequence', pack.PossiblyNoneType(2**32 - 1, pack.IntType(32))),
+        ('sequence', pack.IntType(32)),
     ]))),
     ('tx_outs', pack.ListType(pack.ComposedType([
         ('value', pack.IntType(64)),
@@ -195,7 +175,88 @@ tx_type_1 = pack.ComposedType([
     ('lock_time', pack.IntType(32)),
     ('expiry', pack.IntType(32)),
 ])
+
+#
+# 2 (Only witness) - The transaction's witness data is the only data present. 
+#   For each input, this includes its value, block height, block index, and signature script.
+#
+tx_type_2 = pack.ComposedType([
+    # Witness Inputs
+    ('wtx_ins', pack.ListType(pack.ComposedType([
+        ('value', pack.IntType(64)),
+        ('block_height', pack.IntType(32)),
+        ('block_index', pack.IntType(32)),
+        ('script_sig', pack.VarStrType()),
+    ]))),
+])
+
+
+#
+# 3 (Witness signing) - The transaction's witness data is the only data present, and is serialized
+#   for signing purposes. For each input, this includes only its signature script.
+#
+tx_type_3 = pack.ComposedType([
+    # Witness Inputs
+    ('wtx_ins', pack.ListType(pack.ComposedType([
+        ('script_sig', pack.VarStrType()),
+    ]))),
+])
+
+#
+# 4 (Witness signing with value) - The transaction's witness data is the only data present, and is
+#   serialized for signing purposes. Unlike the Witness signing format, this format includes the 
+#   value of each input before its signature script.
+#
+tx_type_4 = pack.ComposedType([
+    # Witness Inputs
+    ('wtx_ins', pack.ListType(pack.ComposedType([
+        ('value', pack.IntType(64)),
+        ('script_sig', pack.VarStrType()),
+    ]))),
+])
+
+
+class SerializedTx(object):
+    def __init__(self, type_0, type_1, type_2, type_3, type_4):
+        self._type_0 = type_0
+        self._type_1 = type_1
+        self._type_2 = type_2
+        self._type_3 = type_3
+        self._type_4 = type_4
+    
+    def unpack(self, packed_tx, ignore_trailing=False):
+        '''
+        Deserialize a raw transaction into a Record struct - depending on serialization type
+        
+        We assume the data is packed 'bytes'. Serialization type is the second little endian word.
+        '''
+        s = (packed_tx[3] + packed_tx[2]).encode('hex')
+        sertype = int(s,16)
+        if sertype == 0:
+            return self._type_0.unpack(packed_tx)
+        elif sertype == 1:
+            return self._type_1.unpack(packed_tx)
+        elif sertype == 2:
+            return self._type_2.unpack(packed_tx)
+        elif sertype == 3:
+            return self._type_3.unpack(packed_tx)
+        elif sertype == 4:
+            return self._type_4.unpack(packed_tx)
+        else:
+            raise AssertionError('Unknown serializaation type {}'.format(sertype))
+        
+    def pack(self):
+        # TODO: FIXME if needed
+        self._type_0.unpack(file)
+    
+
+#
+# General tx_type. Actual type specified by bytes 2, 3 of the initial 4-byte version
+#
+tx_type = SerializedTx(tx_type_0, tx_type_1, tx_type_2, tx_type_3, tx_type_4)
+
 #<-gf:
+
 
 merkle_link_type = pack.ComposedType([
     ('branch', pack.ListType(pack.IntType(256))),
@@ -208,14 +269,70 @@ merkle_tx_type = pack.ComposedType([
     ('merkle_link', merkle_link_type),
 ])
 
+#gf->
+class IntTypeBE(pack.Type):
+    __slots__ = 'bytes step format_str max'.split(' ')
+    
+    def __new__(cls, bits, endianness='big'):
+        assert bits % 8 == 0
+        assert endianness in ['little', 'big']
+        if bits in [8, 16, 32, 64]:
+            return pack.StructType(('<' if endianness == 'little' else '>') + {8: 'B', 16: 'H', 32: 'I', 64: 'Q'}[bits])
+        else:
+            return pack.Type.__new__(cls, bits, endianness)
+    
+    def __init__(self, bits, endianness='big'):
+        assert bits % 8 == 0
+        assert endianness in ['little', 'big']
+        self.bytes = bits//8
+        self.step = -1 if endianness == 'little' else 1
+        self.format_str = '%%0%ix' % (2*self.bytes)
+        self.max = 2**bits
+    
+    import binascii
+    def read(self, file, b2a_hex=binascii.b2a_hex):
+        if self.bytes == 0:
+            return 0, file
+        data, file = pack.read(file, self.bytes)
+        return int(b2a_hex(data[::self.step]), 16), file
+    
+    def write(self, file, item, a2b_hex=binascii.a2b_hex):
+        if self.bytes == 0:
+            return file
+        if not 0 <= item < self.max:
+            raise ValueError('invalid int value - %r' % (item,))
+        return file, a2b_hex(self.format_str % (item,))[::self.step]
+
+#
+# Decred block header
+#
+# Extra data: redefined for pool worker unique id
+# Extra data: redefined for extra nonce space (asics) 
+# Extra data: undefined
+#  
 block_header_type = pack.ComposedType([
     ('version', pack.IntType(32)),
-    ('previous_block', pack.PossiblyNoneType(0, pack.IntType(256))),
+    ('previous_block', pack.IntType(256)),
     ('merkle_root', pack.IntType(256)),
+    ('stake_root', pack.IntType(256)),
+    ('vote_bits', pack.IntType(16)),
+    ('final_state', pack.IntType(48, endianness='big')),
+    ('voters', pack.IntType(16)),
+    ('fresh_stake', pack.IntType(8)),
+    ('revocations', pack.IntType(8)),
+    ('pool_size', pack.IntType(32)),
+    ('bits', pack.IntType(32)),
+    ('sbits', pack.IntType(64)),
+    ('height', pack.IntType(32)),
+    ('size', pack.IntType(32)),
     ('timestamp', pack.IntType(32)),
-    ('bits', FloatingIntegerType()),
     ('nonce', pack.IntType(32)),
+    ('extra_nonce1', pack.IntType(32)),
+    ('extra_nonce2', pack.IntType(32)),
+    ('extra', pack.IntType(256 - 64)),
+    ('stake_version', pack.IntType(32)),
 ])
+#<-gf
 
 block_type = pack.ComposedType([
     ('header', block_header_type),
@@ -351,7 +468,7 @@ def address_to_pubkey_hash(address, net):
         raise ValueError('address not for this net!')
     return x['pubkey_hash']
 
-# transactions
+# transactions - FIXME: for decred
 
 def pubkey_to_script2(pubkey):
     assert len(pubkey) <= 75
@@ -422,18 +539,21 @@ if __name__=="__main__":
     # Test - Parse Transaction
     #     
     data = "01000000020e5551a794baacdc45c453d8ce3d511058dc6618977884f685bc3cc878bbb3bf0100000000ffffffffe14810a5123cdddc98e2a1040cd584ac2a172a2c2cda36d98a94e34bf12985ba0200000001ffffffff02c347dac00100000000001976a9145ed0b86ae903b337a58203b84c98aa004473d61e88ac7cb097570100000000001976a9140459aa94d72597122586c011c5e29d3a7a9db3e388ac0000000000000000021f74a71a01000000b1dc0200030000006a47304402201b12b4f88d172ea24b94ef71b68c25d83072239c37aa70205f56a8c83adeb21c0220151851dc0a2ed80f86bc96dab3c2d190a81296be8ca83dd8578db1ce56a405b7012102a3f6cf568ed663348118f7dfd412253b61a3e93d4eb6cf3ce9046b3c18e4e393cc27cbfd01000000b4db0200020000006b483045022100d194f05a7a2a5c54744cf305b5e3d6a925f4ed300c924eff135b8719bd0048c8022074da56a7d7035393fce62ccd238a972a3f332b15f588bed62156ea5082dc4d8a012102c074fe37ac06734bfd2b8aeedc23e38c0487418d0aa885af285b31ccebed9fec"
+    hash = "fa7003848826f8fec2041d05b26f90ff9447fa14eb8fde66079074b3a5005332"
     packed_tx = data.decode('hex')
-    transactions = tx_type_0.unpack(packed_tx, ignore_trailing=False)
-    
+    packed_hash = hash.decode('hex')
+    print(packed_hash.encode('hex'))
+    transaction = tx_type.unpack(packed_tx)
+    print(transaction)
     
     #     
     # Test - Parse Block Header
-    #     
-    block_header = "06000000fc2cfb43c94bc45820be264b0ce496ff333aca8fe82be3b903ad5c06000000002ee7069baed869c043a2b8c6317a7947d14a883d226571362b1442d5d72ebcd0a7b12cbfed88d52b5f49d7f8277263f216353f4d417d923f5e7b5dbdc5c2ef3c0100f4e0b1d5e96305000c00281600003a02091ccf7ab912010000008bb50200852b0000782f115a00000000000000000000000000000000000000000000000000000000000000000000000006000000"
+    #
+    block_header = "0500000068c69fa348fa573e026a019023e8dd68bfd1015d83e3787a6900000000000000a6007c15b73f3c7cdb213bf21507590c8b20ce35d01a87f2c4193659419ca4910da437a68c2ad4097dfd361f6a677004edf2b2443895e119d98286c4f873aef80100089e4f047cc705001400da9f00000cca001a90e814bf01000000dcdd02005b3400006c99125a06df158dc79d268ec36218fc00000000000000000000000000000000000000000000000005000000"
     packed_header = block_header.decode('hex')
-    header_fields = map(block_header_type.unpack, packed_header)
-    
-    for f in header_fields:
-        print(f)
+    header_fields = block_header_type.unpack(packed_header, ignore_trailing=False)  
+    print("\nBlock Header:")
+    for k in header_fields.keys():
+        print(k, hex(header_fields[k]))
     
     

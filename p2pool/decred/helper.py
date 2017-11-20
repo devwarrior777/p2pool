@@ -44,11 +44,29 @@ def getwork(dcrd, use_getblocktemplate=True):
         print >>sys.stderr, 'Error: Decred version too old! Upgrade to v1.1.1 or newer!'
         raise deferral.RetrySilentlyException()
 
-    packed_txs = [x['data'].decode('hex') for x in work['transactions']]
-    packed_stxx = [x['data'].decode('hex') for x in work['stransactions']]
+    packed_txs = []
+    for tx in work['transactions']:
+        ptx = tx['data'].decode('hex')
+        phash = tx['hash'].decode('hex')
+        packed_txs.append({'ptx': ptx, 'phash': phash, 'tree': 0}) 
+    packed_stxxs = []
+    for stxx in work['stransactions']:
+        ptx = stxx['data'].decode('hex')
+        phash = stxx['hash'].decode('hex')
+        packed_stxxs.append({'ptx': ptx, 'phash': phash, 'tree': 1}) 
+    
     packed_transactions = []
     packed_transactions.extend(packed_txs)
-    packed_transactions.extend(packed_stxx)
+    packed_transactions.extend(packed_stxxs)
+
+    transaction_records = []
+    transaction_hashes = []
+    for packed_tx in packed_transactions:
+        txrec = decred_data.tx_type.unpack(packed_tx['ptx'])
+        transaction_records.append(txrec)
+        transaction_hashes.append(packed_tx['ptx'])
+    
+        
 #     if 'height' not in work:
 #         work['height'] = (yield dcrd.rpc_getblock(work['previousblockhash']))['height'] + 1
 #     elif p2pool.DEBUG:
@@ -59,8 +77,8 @@ def getwork(dcrd, use_getblocktemplate=True):
     wd = dict(
         version=work['version'],
         previous_block=int(work['previousblockhash'], 16),
-        transactions=map(decred_data.tx_type.unpack, packed_transactions),
-        transaction_hashes=map(decred_data.hash256, packed_transactions),
+        transactions=transaction_records,
+        transaction_hashes=transaction_hashes,
         transaction_fees=[x.get('fee', None) if isinstance(x, dict) else None for x in work['transactions']],
         subsidy=work['coinbasevalue'],
 #         time=work['time'] if 'time' in work else work['curtime'],
