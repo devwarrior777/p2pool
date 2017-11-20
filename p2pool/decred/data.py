@@ -223,6 +223,7 @@ class SerializedTx(object):
         self._type_2 = type_2
         self._type_3 = type_3
         self._type_4 = type_4
+        self.sertype = 0
     
     def unpack(self, packed_tx, ignore_trailing=False):
         '''
@@ -232,6 +233,7 @@ class SerializedTx(object):
         '''
         s = (packed_tx[3] + packed_tx[2]).encode('hex')
         sertype = int(s,16)
+        self.sertype = sertype
         if sertype == 0:
             return self._type_0.unpack(packed_tx)
         elif sertype == 1:
@@ -245,11 +247,26 @@ class SerializedTx(object):
         else:
             raise AssertionError('Unknown serializaation type {}'.format(sertype))
         
-    def pack(self):
-        # TODO: FIXME if needed
-        self._type_0.unpack(file)
-    
-
+    def pack(self,obj):
+        sertype = self.sertype
+        if sertype == 0:
+            return self._type_0.pack(obj)
+        elif sertype == 1:
+            return self._type_1.pack(obj)
+        elif sertype == 2:
+            return self._type_2.pack(obj)
+        elif sertype == 3:
+            return self._type_3.pack(obj)
+        elif sertype == 4:
+            return self._type_4.pack(obj)
+        else:
+            raise AssertionError('Unknown serializaation type {}'.format(sertype))
+        
+    #dummy read/write
+    def read(self,file):
+        return file
+    def write(self, file, item):
+        return file, item
 #
 # General tx_type. Actual type specified by bytes 2, 3 of the initial 4-byte version
 #
@@ -270,39 +287,6 @@ merkle_tx_type = pack.ComposedType([
 ])
 
 #gf->
-class IntTypeBE(pack.Type):
-    __slots__ = 'bytes step format_str max'.split(' ')
-    
-    def __new__(cls, bits, endianness='big'):
-        assert bits % 8 == 0
-        assert endianness in ['little', 'big']
-        if bits in [8, 16, 32, 64]:
-            return pack.StructType(('<' if endianness == 'little' else '>') + {8: 'B', 16: 'H', 32: 'I', 64: 'Q'}[bits])
-        else:
-            return pack.Type.__new__(cls, bits, endianness)
-    
-    def __init__(self, bits, endianness='big'):
-        assert bits % 8 == 0
-        assert endianness in ['little', 'big']
-        self.bytes = bits//8
-        self.step = -1 if endianness == 'little' else 1
-        self.format_str = '%%0%ix' % (2*self.bytes)
-        self.max = 2**bits
-    
-    import binascii
-    def read(self, file, b2a_hex=binascii.b2a_hex):
-        if self.bytes == 0:
-            return 0, file
-        data, file = pack.read(file, self.bytes)
-        return int(b2a_hex(data[::self.step]), 16), file
-    
-    def write(self, file, item, a2b_hex=binascii.a2b_hex):
-        if self.bytes == 0:
-            return file
-        if not 0 <= item < self.max:
-            raise ValueError('invalid int value - %r' % (item,))
-        return file, a2b_hex(self.format_str % (item,))[::self.step]
-
 #
 # Decred block header
 #
@@ -457,7 +441,10 @@ human_address_type = ChecksummedType(pack.ComposedType([
 ]))
 
 def pubkey_hash_to_address(pubkey_hash, net):
-    return base58_encode(human_address_type.pack(dict(version=net.ADDRESS_VERSION, pubkey_hash=pubkey_hash)))
+#     return base58_encode(human_address_type.pack(dict(version=net.ADDRESS_VERSION, pubkey_hash=pubkey_hash)))
+    human = dict(version=0, pubkey_hash=pubkey_hash)
+    hat = human_address_type.pack(human)
+    return base58_encode(hat)
 
 def pubkey_to_address(pubkey, net):
     return pubkey_hash_to_address(hash160(pubkey), net)
@@ -543,8 +530,11 @@ if __name__=="__main__":
     packed_tx = data.decode('hex')
     packed_hash = hash.decode('hex')
     print(packed_hash.encode('hex'))
-    transaction = tx_type.unpack(packed_tx)
+    transaction = tx_type.unpack(packed_tx, ignore_trailing=False)
     print(transaction)
+    # Test re-pack
+    pkdtx = tx_type.pack(transaction)
+    assert pkdtx == packed_tx
     
     #     
     # Test - Parse Block Header
@@ -555,5 +545,31 @@ if __name__=="__main__":
     print("\nBlock Header:")
     for k in header_fields.keys():
         print(k, hex(header_fields[k]))
+    
+    #
+    # bits -> floating integer
+    #
+    bits = header_fields.bits
+    print(bits,type(bits))
+    fib = FloatingInteger(bits)
+    print(fib,(type(fib)))
+    print
+    
+    #
+    # pub key hash -> address
+    #
+    # 
+    # TscoEFWZjuWEqVPNGGzM9X3Pa8iXHk6jgYg
+    #
+    # TkQ4652aFF6wocnxbkuTK3bCVAqJci4jTQZRbB6kcaisub8WnPi5U
+    #
+    # 035f0d8f932330d3847f9f6cf30201c6292b3b5698981ebb411a3456009300e5ff
+    # 
+    class net:
+        ADDRESS_VERSION = 1
+    pubkey_hash = 'TkQ4652aFF6wocnxbkuTK3bCVAqJci4jTQZRbB6kcaisub8WnPi5U'
+    res = pubkey_hash_to_address(pubkey_hash, net)
+    print res
+    
     
     

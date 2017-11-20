@@ -44,6 +44,28 @@ def getwork(dcrd, use_getblocktemplate=True):
         print >>sys.stderr, 'Error: Decred version too old! Upgrade to v1.1.1 or newer!'
         raise deferral.RetrySilentlyException()
 
+    #
+    # work
+    #
+    work['currtime'] = time.time()
+
+
+    #
+    # Block Header
+    #
+    block_header = work['header']
+    packed_header = block_header.decode('hex')
+    block_header_record = decred_data.block_header_type.unpack(packed_header)
+    work['version'] = block_header_record.version
+    work['bits'] = block_header_record.bits
+    work['height'] = block_header_record.height
+    work['previousblockhash'] = "{0:x}".format(block_header_record.previous_block)
+    if p2pool.DEBUG:
+        assert work['height'] == (yield dcrd.rpc_getblock(work['previousblockhash']))['height'] + 1
+
+    #
+    # Transactions
+    #
     packed_txs = []
     for tx in work['transactions']:
         ptx = tx['data'].decode('hex')
@@ -66,14 +88,6 @@ def getwork(dcrd, use_getblocktemplate=True):
         transaction_records.append(txrec)
         transaction_hashes.append(packed_tx['ptx'])
     
-        
-#     if 'height' not in work:
-#         work['height'] = (yield dcrd.rpc_getblock(work['previousblockhash']))['height'] + 1
-#     elif p2pool.DEBUG:
-#         assert work['height'] == (yield dcrd.rpc_getblock(work['previousblockhash']))['height'] + 1
-    work['version']='1'
-    work['height']=0
-    work['previousblockhash']='0000000000000000000000000000000000000000000000000000000000000000'
     wd = dict(
         version=work['version'],
         previous_block=int(work['previousblockhash'], 16),
@@ -81,13 +95,13 @@ def getwork(dcrd, use_getblocktemplate=True):
         transaction_hashes=transaction_hashes,
         transaction_fees=[x.get('fee', None) if isinstance(x, dict) else None for x in work['transactions']],
         subsidy=work['coinbasevalue'],
-#         time=work['time'] if 'time' in work else work['curtime'],
-#         bits=decred_data.FloatingIntegerType().unpack(work['bits'].decode('hex')[::-1]) if isinstance(work['bits'], (str, unicode)) else decred_data.FloatingInteger(work['bits']),
-#         coinbaseflags=work['coinbaseflags'].decode('hex') if 'coinbaseflags' in work else ''.join(x.decode('hex') for x in work['coinbaseaux'].itervalues()) if 'coinbaseaux' in work else '',
-#         height=work['height'],
-#         last_update=time.time(),
+        time=work['currtime'],
+        bits=decred_data.FloatingInteger(work['bits']),
+        coinbaseflags=''.join(x.decode('hex') for x in work['coinbaseaux'].itervalues()),
+        height=work['height'],
+        last_update=time.time(),
         use_getblocktemplate=use_getblocktemplate,
-#         latency=end - start,
+        latency=end - start,
     )
     defer.returnValue(wd)
 #     defer.returnValue(dict(

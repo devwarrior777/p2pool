@@ -101,12 +101,12 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
         dcrd = jsonrpc.HTTPProxy(url, dict(Authorization='Basic ' + base64.b64encode(args.dcrd_rpc_username + ':' + args.dcrd_rpc_password)), timeout=30)
         yield helper.check(dcrd, net)
 
-#         # wallet separate
-#         # 9111/19111
-#         walleturl = '%s://%s:%i/' % ('https' if args.dcrd_rpc_ssl else 'http', args.dcrd_address, args.dcrd_rpc_wallet_port)
-#         print '''Testing dcrdwallet RPC connection to '%s' with username '%s'...''' % (walleturl, args.dcrd_rpc_username)
-#         dcrdwallet = jsonrpc.HTTPProxy(walleturl, dict(Authorization='Basic ' + base64.b64encode(args.dcrd_rpc_username + ':' + args.dcrd_rpc_password)), timeout=30)
-#         yield helper.checkwallet(dcrdwallet, net)
+        # wallet separate
+        # 9111/19111
+        walleturl = '%s://%s:%i/' % ('https' if args.dcrd_rpc_ssl else 'http', args.dcrd_address, args.dcrd_rpc_wallet_port)
+        print '''Testing dcrdwallet RPC connection to '%s' with username '%s'...''' % (walleturl, args.dcrd_rpc_username)
+        dcrwallet = jsonrpc.HTTPProxy(walleturl, dict(Authorization='Basic ' + base64.b64encode(args.dcrd_rpc_username + ':' + args.dcrd_rpc_password)), timeout=30)
+        yield helper.checkwallet(dcrwallet, net)
 
         temp_work = yield helper.getwork(dcrd)
         
@@ -119,6 +119,7 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
         
         print '    ...success!'
         print '    Current block hash: {}'.format(temp_work['previous_block'])
+        print(temp_work['height'], type(temp_work['height']))
         print '    Current block height: {}'.format(temp_work['height'] - 1)
         print
         
@@ -140,7 +141,7 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
             if address is None:
                 print '    Getting payout address from dcrwallet...not a great idea...'
                 address = yield deferral.retry('Error getting payout address from local dcrwallet:', 5) \
-                                                (lambda: dcrdwallet.rpc_getaccountaddress('default'))()
+                                                (lambda: dcrwallet.rpc_getaccountaddress('default'))()
             with open(address_path, 'wb') as f:
                 f.write(address)
             
@@ -148,7 +149,7 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
                 raise Exception('Failed to get an address from local wallet')
             
             res = yield deferral.retry('Error validating address:', 5) \
-                                        (lambda: dcrdwallet.rpc_validateaddress(address))()
+                                        (lambda: dcrwallet.rpc_validateaddress(address))()
             if not res['isvalid'] or not res['ismine']:
                 print '    Local address is either invalid or not controlled by local dcrwallet!'
                 address = None
@@ -628,6 +629,12 @@ def run():
             parser.error('error parsing address: ' + repr(e))
     else:
         args.pubkey_hash = None
+    
+    #gf->
+    if args.testnet:
+        args.pubkey_hash = u'TkQ4652aFF6wocnxbkuTK3bCVAqJci4jTQZRbB6kcaisub8WnPi5U'
+    #<-gf
+    
     
     def separate_url(url):
         s = urlparse.urlsplit(url)
