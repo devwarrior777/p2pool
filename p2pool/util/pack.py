@@ -193,7 +193,7 @@ class StructType(Type):
         return file, struct.pack(self.desc, item)
 
 '''
-@memoize.fast_memoize_multiple_args
+@memoize.fast_memoize_multiple_args - removed as it disallows endianness kwarg
 '''
 class IntType(Type):
     __slots__ = 'bytes step format_str max'.split(' ')

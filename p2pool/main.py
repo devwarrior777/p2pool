@@ -19,7 +19,9 @@ from twisted.web import server
 from twisted.python import log
 from nattraverso import portmapper, ipdiscover
 
-import decred.p2p as decred_p2p, decred.data as decred_data
+import decred.p2p as decred_p2p
+import decred.data as decred_data
+import decred.decred_addr as decred_addr
 from p2pool.decred import stratum, worker_interface, helper
 from util import fixargparse, jsonrpc, variable, deferral, math, logging, switchprotocol
 from p2pool import networks, web, work
@@ -65,7 +67,7 @@ class keypool():
     def paytotal(self):
         self.payouttotal = 0.0
         for i in range(len(pubkeys.keys)):
-            self.payouttotal += node.get_current_txouts().get(decred_data.pubkey_hash_to_script2(pubkeys.keys[i]), 0)*1e-8
+            self.payouttotal += node.get_current_txouts().get(decred_addr.pubkey_hash_to_script2(pubkeys.keys[i]), 0)*1e-8
         return self.payouttotal
 
     def getpaytotal(self):
@@ -165,7 +167,7 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
             pubkeys.addkey(my_pubkey_hash)
         elif args.address != 'dynamic':                 # Maybe this is safer .. but no checks...
             my_pubkey_hash = args.pubkey_hash
-            print '    ...success! Payout address:', decred_data.pubkey_hash_to_address(my_pubkey_hash, net.PARENT)
+            print '    ...success! Payout address:', decred_addr.pubkey_hash_to_address(my_pubkey_hash, net.PARENT)
             print
             pubkeys.addkey(my_pubkey_hash)
         else:
@@ -175,8 +177,8 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
                 print ' ERROR: Can not use fewer than 2 addresses in dynamic mode. Resetting to 2.'
                 args.numaddresses = 2
             for i in range(args.numaddresses):
-                address = yield deferral.retry('Error getting a dynamic address from dcrd:', 5)(lambda: dcrdwallet.rpc_getnewaddress('p2pool'))()
-                new_pubkey = decred_data.address_to_pubkey_hash(address, net.PARENT)
+                address = yield deferral.retry('Error getting a dynamic address from dcrd:', 5)(lambda: dcrwallet.rpc_getnewaddress('p2pool'))()
+                new_pubkey = decred_addr.address_to_pubkey_hash(address, net.PARENT)
                 pubkeys.addkey(new_pubkey)
 
             pubkeys.updatestamp(time.time())
@@ -184,7 +186,7 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
             my_pubkey_hash = pubkeys.keys[0]
 
             for i in range(len(pubkeys.keys)):
-                print '    ...payout %d: %s' % (i, decred_data.pubkey_hash_to_address(pubkeys.keys[i], net.PARENT),)
+                print '    ...payout %d: %s' % (i, decred_addr.pubkey_hash_to_address(pubkeys.keys[i], net.PARENT),)
         
         print "Loading shares..."
         shares = {}
@@ -352,7 +354,7 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
                             return
                         if share.pow_hash <= share.header['bits'].target and abs(share.timestamp - time.time()) < 10*60:
                             yield deferral.sleep(random.expovariate(1/60))
-                            message = '\x02%s BLOCK FOUND by %s! %s%064x' % (net.NAME.upper(), decred_data.script2_to_address(share.new_script, net.PARENT), net.PARENT.BLOCK_EXPLORER_URL_PREFIX, share.header_hash)
+                            message = '\x02%s BLOCK FOUND by %s! %s%064x' % (net.NAME.upper(), decred_addr.script2_to_address(share.new_script, net.PARENT), net.PARENT.BLOCK_EXPLORER_URL_PREFIX, share.header_hash)
                             if all('%x' % (share.header_hash,) not in old_message for old_message in self.recent_messages):
                                 self.say(self.channel, message)
                                 self._remember_message(message)
@@ -410,7 +412,7 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
                         paystr = ''
                         paytot = 0.0
                         for i in range(len(pubkeys.keys)):
-                            curtot = node.get_current_txouts().get(decred_data.pubkey_hash_to_script2(pubkeys.keys[i]), 0)
+                            curtot = node.get_current_txouts().get(decred_addr.pubkey_hash_to_script2(pubkeys.keys[i]), 0)
                             paytot += curtot*1e-8
                             paystr += "(%.4f)" % (curtot*1e-8,)
                         paystr += "=%.4f" % (paytot,)
@@ -624,7 +626,7 @@ def run():
     
     if args.address is not None and args.address != 'dynamic':
         try:
-            args.pubkey_hash = decred_data.address_to_pubkey_hash(args.address, net.PARENT)
+            args.pubkey_hash = decred_addr.address_to_pubkey_hash(args.address, net.PARENT)
         except Exception, e:
             parser.error('error parsing address: ' + repr(e))
     else:

@@ -13,36 +13,14 @@ import struct
 def hash256(data):
     return pack.IntType(256).unpack(BLAKE(256).digest(data))
 
-
 def hash256_sha(data):
     return pack.IntType(256).unpack(hashlib.sha256(hashlib.sha256(data).digest()).digest())
-
 
 #gf: blake or sha256d here?
 def hash160(data):
     if data == '04ffd03de44a6e11b9917f3a29f9443283d9871c9d743ef30d5eddcd37094b64d1b3d8090496b53256786bf5c82932ec23c3b74d9f05a6f95a8b5529352656664b'.decode('hex'):
         return 0x384f570ccc88ac2e7e00b026d1690a3fca63dd0 # hack for people who don't have openssl - this is the only value that p2pool ever hashes
     return pack.IntType(160).unpack(hashlib.new('ripemd160', hashlib.sha256(data).digest()).digest())
-
-class ChecksummedType(pack.Type):
-    def __init__(self, inner, checksum_func=lambda data: BLAKE(256).digest(data)[:4]):
-        self.inner = inner
-        self.checksum_func = checksum_func
-    
-    def read(self, file):
-        obj, file = self.inner.read(file)
-        data = self.inner.pack(obj)
-        
-        calculated_checksum = self.checksum_func(data)
-        checksum, file = pack.read(file, len(calculated_checksum))
-        if checksum != calculated_checksum:
-            raise ValueError('invalid checksum')
-        
-        return obj, file
-    
-    def write(self, file, item):
-        data = self.inner.pack(item)
-        return (file, data), self.checksum_func(data)
 
 class FloatingInteger(object):
     __slots__ = ['bits', '_target']
@@ -84,6 +62,7 @@ class FloatingInteger(object):
     def __repr__(self):
         return 'FloatingInteger(bits=%s, target=%s)' % (hex(self.bits), hex(self.target))
 
+
 class FloatingIntegerType(pack.Type):
     _inner = pack.IntType(32)
     
@@ -99,24 +78,6 @@ address_type = pack.ComposedType([
     ('address', pack.IPV6AddressType()),
     ('port', pack.IntType(16, 'big')),
 ])
-
-#gf->
-# tx_type = pack.ComposedType([
-#     ('version', pack.IntType(32)),
-#     ('tx_ins', pack.ListType(pack.ComposedType([
-#         ('previous_output', pack.PossiblyNoneType(dict(hash=0, index=2**32 - 1), pack.ComposedType([
-#             ('hash', pack.IntType(256)),
-#             ('index', pack.IntType(32)),
-#         ]))),
-#         ('script', pack.VarStrType()),
-#         ('sequence', pack.PossiblyNoneType(2**32 - 1, pack.IntType(32))),
-#     ]))),
-#     ('tx_outs', pack.ListType(pack.ComposedType([
-#         ('value', pack.IntType(64)),
-#         ('script', pack.VarStrType()),
-#     ]))),
-#     ('lock_time', pack.IntType(32)),
-# ])
 
 
 ###############################################################################
@@ -215,7 +176,9 @@ tx_type_4 = pack.ComposedType([
     ]))),
 ])
 
-
+#
+# Demuliplexes the 5 different tx formats based on the sertype at bytes 2,3
+# 
 class SerializedTx(object):
     def __init__(self, type_0, type_1, type_2, type_3, type_4):
         self._type_0 = type_0
@@ -245,9 +208,14 @@ class SerializedTx(object):
         elif sertype == 4:
             return self._type_4.unpack(packed_tx)
         else:
-            raise AssertionError('Unknown serializaation type {}'.format(sertype))
+            raise AssertionError('Unknown serialization type {}'.format(sertype))
         
     def pack(self,obj):
+        '''
+        Re-serialize a Record struct into a previously serialzed raw transaction - depending on serialization type
+        
+        Serialization type is the cached sertype variable.
+        '''
         sertype = self.sertype
         if sertype == 0:
             return self._type_0.pack(obj)
@@ -262,7 +230,7 @@ class SerializedTx(object):
         else:
             raise AssertionError('Unknown serializaation type {}'.format(sertype))
         
-    #dummy read/write
+    #dummy read/write - TODO: pass back something sensible if called
     def read(self,file):
         return file
     def write(self, file, item):
@@ -272,21 +240,11 @@ class SerializedTx(object):
 #
 tx_type = SerializedTx(tx_type_0, tx_type_1, tx_type_2, tx_type_3, tx_type_4)
 
-#<-gf:
 
+###############################################################################
+# https://docs.decred.org/advanced/block-header-specifications/
+###############################################################################
 
-merkle_link_type = pack.ComposedType([
-    ('branch', pack.ListType(pack.IntType(256))),
-    ('index', pack.IntType(32)),
-])
-
-merkle_tx_type = pack.ComposedType([
-    ('tx', tx_type),
-    ('block_hash', pack.IntType(256)),
-    ('merkle_link', merkle_link_type),
-])
-
-#gf->
 #
 # Decred block header
 #
@@ -316,42 +274,27 @@ block_header_type = pack.ComposedType([
     ('extra', pack.IntType(256 - 64)),
     ('stake_version', pack.IntType(32)),
 ])
-#<-gf
 
 block_type = pack.ComposedType([
     ('header', block_header_type),
     ('txs', pack.ListType(tx_type)),
 ])
 
-# merged mining
 
-aux_pow_type = pack.ComposedType([
-    ('merkle_tx', merkle_tx_type),
+###############################################################################
+# merkle tree manipulation
+###############################################################################
+
+merkle_link_type = pack.ComposedType([
+    ('branch', pack.ListType(pack.IntType(256))),
+    ('index', pack.IntType(32)),
+])
+
+merkle_tx_type = pack.ComposedType([
+    ('tx', tx_type),
+    ('block_hash', pack.IntType(256)),
     ('merkle_link', merkle_link_type),
-    ('parent_block_header', block_header_type),
 ])
-
-aux_pow_coinbase_type = pack.ComposedType([
-    ('merkle_root', pack.IntType(256, 'big')),
-    ('size', pack.IntType(32)),
-    ('nonce', pack.IntType(32)),
-])
-
-def make_auxpow_tree(chain_ids):
-    for size in (2**i for i in xrange(31)):
-        if size < len(chain_ids):
-            continue
-        res = {}
-        for chain_id in chain_ids:
-            pos = (1103515245 * chain_id + 1103515245 * 12345 + 12345) % size
-            if pos in res:
-                break
-            res[pos] = chain_id
-        else:
-            return res, size
-    raise AssertionError()
-
-# merkle trees
 
 merkle_record_type = pack.ComposedType([
     ('left', pack.IntType(256)),
@@ -402,6 +345,34 @@ def check_merkle_link(tip_hash, link):
         dict(left=c, right=h)
     )), enumerate(link['branch']), tip_hash)
 
+# merged mining
+
+aux_pow_type = pack.ComposedType([
+    ('merkle_tx', merkle_tx_type),
+    ('merkle_link', merkle_link_type),
+    ('parent_block_header', block_header_type),
+])
+
+aux_pow_coinbase_type = pack.ComposedType([
+    ('merkle_root', pack.IntType(256, 'big')),
+    ('size', pack.IntType(32)),
+    ('nonce', pack.IntType(32)),
+])
+
+def make_auxpow_tree(chain_ids):
+    for size in (2**i for i in xrange(31)):
+        if size < len(chain_ids):
+            continue
+        res = {}
+        for chain_id in chain_ids:
+            pos = (1103515245 * chain_id + 1103515245 * 12345 + 12345) % size
+            if pos in res:
+                break
+            res[pos] = chain_id
+        else:
+            return res, size
+    raise AssertionError()
+
 # targets
 
 def target_to_average_attempts(target):
@@ -423,86 +394,6 @@ def difficulty_to_target(difficulty):
     if difficulty == 0: return 2**256-1
     return min(int((0xffff0000 * 2**(256-64) + 1)/difficulty - 1 + 0.5), 2**256-1)
 
-# human addresses
-
-base58_alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
-
-def base58_encode(bindata):
-    bindata2 = bindata.lstrip(chr(0))
-    return base58_alphabet[0]*(len(bindata) - len(bindata2)) + math.natural_to_string(math.string_to_natural(bindata2), base58_alphabet)
-
-def base58_decode(b58data):
-    b58data2 = b58data.lstrip(base58_alphabet[0])
-    return chr(0)*(len(b58data) - len(b58data2)) + math.natural_to_string(math.string_to_natural(b58data2, base58_alphabet))
-
-human_address_type = ChecksummedType(pack.ComposedType([
-    ('version', pack.IntType(8)),
-    ('pubkey_hash', pack.IntType(160)),
-]))
-
-def pubkey_hash_to_address(pubkey_hash, net):
-#     return base58_encode(human_address_type.pack(dict(version=net.ADDRESS_VERSION, pubkey_hash=pubkey_hash)))
-    human = dict(version=0, pubkey_hash=pubkey_hash)
-    hat = human_address_type.pack(human)
-    return base58_encode(hat)
-
-def pubkey_to_address(pubkey, net):
-    return pubkey_hash_to_address(hash160(pubkey), net)
-
-def address_to_pubkey_hash(address, net):
-    x = human_address_type.unpack(base58_decode(address))
-    if x['version'] != net.ADDRESS_VERSION:
-        raise ValueError('address not for this net!')
-    return x['pubkey_hash']
-
-# transactions - FIXME: for decred
-
-def pubkey_to_script2(pubkey):
-    assert len(pubkey) <= 75
-    return (chr(len(pubkey)) + pubkey) + '\xac'
-
-def pubkey_hash_to_script2(pubkey_hash):
-    return '\x76\xa9' + ('\x14' + pack.IntType(160).pack(pubkey_hash)) + '\x88\xac'
-
-def script2_to_address(script2, net):
-    try:
-        pubkey = script2[1:-1]
-        script2_test = pubkey_to_script2(pubkey)
-    except:
-        pass
-    else:
-        if script2_test == script2:
-            return pubkey_to_address(pubkey, net)
-    
-    try:
-        pubkey_hash = pack.IntType(160).unpack(script2[3:-2])
-        script2_test2 = pubkey_hash_to_script2(pubkey_hash)
-    except:
-        pass
-    else:
-        if script2_test2 == script2:
-            return pubkey_hash_to_address(pubkey_hash, net)
-
-def script2_to_human(script2, net):
-    try:
-        pubkey = script2[1:-1]
-        script2_test = pubkey_to_script2(pubkey)
-    except:
-        pass
-    else:
-        if script2_test == script2:
-            return 'Pubkey. Address: %s' % (pubkey_to_address(pubkey, net),)
-    
-    try:
-        pubkey_hash = pack.IntType(160).unpack(script2[3:-2])
-        script2_test2 = pubkey_hash_to_script2(pubkey_hash)
-    except:
-        pass
-    else:
-        if script2_test2 == script2:
-            return 'Address. Address: %s' % (pubkey_hash_to_address(pubkey_hash, net),)
-    
-    return 'Unknown. Script: %s'  % (script2.encode('hex'),)
 
 if __name__=="__main__":
     #     
@@ -532,6 +423,8 @@ if __name__=="__main__":
     print(packed_hash.encode('hex'))
     transaction = tx_type.unpack(packed_tx, ignore_trailing=False)
     print(transaction)
+    for k in transaction.keys():
+        print(k, transaction[k])
     # Test re-pack
     pkdtx = tx_type.pack(transaction)
     assert pkdtx == packed_tx
@@ -542,9 +435,13 @@ if __name__=="__main__":
     block_header = "0500000068c69fa348fa573e026a019023e8dd68bfd1015d83e3787a6900000000000000a6007c15b73f3c7cdb213bf21507590c8b20ce35d01a87f2c4193659419ca4910da437a68c2ad4097dfd361f6a677004edf2b2443895e119d98286c4f873aef80100089e4f047cc705001400da9f00000cca001a90e814bf01000000dcdd02005b3400006c99125a06df158dc79d268ec36218fc00000000000000000000000000000000000000000000000005000000"
     packed_header = block_header.decode('hex')
     header_fields = block_header_type.unpack(packed_header, ignore_trailing=False)  
+    print(header_fields)
     print("\nBlock Header:")
     for k in header_fields.keys():
         print(k, hex(header_fields[k]))
+    # Test re-pack
+    pkdhdr = block_header_type.pack(header_fields)
+    assert pkdhdr == packed_header
     
     #
     # bits -> floating integer
@@ -554,22 +451,7 @@ if __name__=="__main__":
     fib = FloatingInteger(bits)
     print(fib,(type(fib)))
     print
-    
-    #
-    # pub key hash -> address
-    #
-    # 
-    # TscoEFWZjuWEqVPNGGzM9X3Pa8iXHk6jgYg
-    #
-    # TkQ4652aFF6wocnxbkuTK3bCVAqJci4jTQZRbB6kcaisub8WnPi5U
-    #
-    # 035f0d8f932330d3847f9f6cf30201c6292b3b5698981ebb411a3456009300e5ff
-    # 
-    class net:
-        ADDRESS_VERSION = 1
-    pubkey_hash = 'TkQ4652aFF6wocnxbkuTK3bCVAqJci4jTQZRbB6kcaisub8WnPi5U'
-    res = pubkey_hash_to_address(pubkey_hash, net)
-    print res
+
     
     
     
