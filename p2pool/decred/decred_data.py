@@ -177,15 +177,22 @@ tx_type_4 = pack.ComposedType([
 ])
 
 #
-# Demuliplexes the 5 different tx formats based on the sertype at bytes 2,3
+# SerializedTx
 # 
+
+class SerializedTxException(Exception): pass
+
 class SerializedTx(object):
+    '''  
+    Demuliplexes the 5 different tx formats based on the sertype at bytes 2,3
+    '''
     def __init__(self, type_0, type_1, type_2, type_3, type_4):
         self._type_0 = type_0
         self._type_1 = type_1
         self._type_2 = type_2
         self._type_3 = type_3
         self._type_4 = type_4
+        self._unpacked = False
         self.sertype = 0
     
     def unpack(self, packed_tx, ignore_trailing=False):
@@ -198,24 +205,32 @@ class SerializedTx(object):
         sertype = int(s,16)
         self.sertype = sertype
         if sertype == 0:
+            self._unpacked = True
             return self._type_0.unpack(packed_tx)
         elif sertype == 1:
+            self._unpacked = True
             return self._type_1.unpack(packed_tx)
         elif sertype == 2:
+            self._unpacked = True
             return self._type_2.unpack(packed_tx)
         elif sertype == 3:
+            self._unpacked = True
             return self._type_3.unpack(packed_tx)
         elif sertype == 4:
+            self._unpacked = True
             return self._type_4.unpack(packed_tx)
         else:
             raise AssertionError('Unknown serialization type {}'.format(sertype))
         
-    def pack(self,obj):
+    def pack(self, obj):
         '''
         Re-serialize a Record struct into a previously serialzed raw transaction - depending on serialization type
         
         Serialization type is the cached sertype variable.
         '''
+        if not self._unpacked:
+            raise SerializedTxException('pack called before unpack')
+        #
         sertype = self.sertype
         if sertype == 0:
             return self._type_0.pack(obj)
@@ -228,10 +243,30 @@ class SerializedTx(object):
         elif sertype == 4:
             return self._type_4.pack(obj)
         else:
-            raise AssertionError('Unknown serializaation type {}'.format(sertype))
+            raise AssertionError('Unknown serialization type {}'.format(sertype))
     
-    def packed_size(self):
-        return 0
+    def packed_size(self, obj):
+        '''
+        Get the packed size of the underlying object - depending on serialization type
+        
+        Serialization type is the cached sertype variable.
+        '''
+        if not self._unpacked:
+            raise SerializedTxException('packed_size called before unpack')
+        #
+        sertype = self.sertype
+        if sertype == 0:
+            return self._type_0.packed_size(obj)
+        elif sertype == 1:
+            return self._type_1.packed_size(obj)
+        elif sertype == 2:
+            return self._type_2.packed_size(obj)
+        elif sertype == 3:
+            return self._type_3.packed_size(obj)
+        elif sertype == 4:
+            return self._type_4.packed_size(obj)
+        else:
+            raise AssertionError('Unknown serialization type {}'.format(sertype))
         
             
     #dummy read/write - TODO: pass back something sensible if called
@@ -415,7 +450,7 @@ if __name__=="__main__":
    
     l = long(0x00000000000000000000000000000000000000000000000000000000000)
     h = hash256(l)
-    print("hash of '{0}' is \n{1} \nhex: {2}'\n".format(l,h,hex(h)))
+    print("hash of {0} is {1} {2}\n".format(l,hex(h),type(h)))
     
     #     
     # Test - Parse Transaction
@@ -429,6 +464,10 @@ if __name__=="__main__":
     print(transaction)
     for k in transaction.keys():
         print(k, transaction[k])
+    # Test packed size
+    pkd_size = tx_type.packed_size(transaction)
+    print
+    print('packed size', pkd_size, type(pkd_size))
     # Test re-pack
     pkdtx = tx_type.pack(transaction)
     assert pkdtx == packed_tx
@@ -443,9 +482,14 @@ if __name__=="__main__":
     print("\nBlock Header:")
     for k in header_fields.keys():
         print(k, hex(header_fields[k]))
+    # Test packed size
+    pkd_size = block_header_type.packed_size(header_fields)
+    print
+    print('packed size', pkd_size, type(pkd_size))
     # Test re-pack
     pkdhdr = block_header_type.pack(header_fields)
     assert pkdhdr == packed_header
+    print
     
     #
     # bits -> floating integer

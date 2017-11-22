@@ -4,6 +4,9 @@ import struct
 import p2pool
 from p2pool.util import memoize
 
+# debug exceptions
+import traceback, sys
+
 class EarlyEnd(Exception):
     pass
 
@@ -292,7 +295,6 @@ class ComposedType(Type):
         self.record_type = get_record(k for k, v in self.fields)
     
     def read(self, file):
-        import traceback, sys
         item = self.record_type()
         for key, type_ in self.fields:
             try:
