@@ -191,26 +191,26 @@ def script2_to_address(script2, net):
         if script2_test2 == script2:
             return pubkey_hash_to_address(pubkey_hash, net)
 
-def script2_to_human(script2, net):
-    try:
-        pubkey = script2[1:-1]
-        script2_test = pubkey_to_script2(pubkey)
-    except:
-        pass
-    else:
-        if script2_test == script2:
-            return 'Pubkey. Address: %s' % (pubkey_to_address(pubkey, net), )
-    
-    try:
-        pubkey_hash = pack.IntType(160).unpack(script2[3:-2])
-        script2_test2 = pubkey_hash_to_script2(pubkey_hash)
-    except:
-        pass
-    else:
-        if script2_test2 == script2:
-            return 'Address. Address: %s' % (pubkey_hash_to_address(pubkey_hash, net), )
-    
-    return 'Unknown. Script: %s'  % (script2.encode('hex'), )
+# def script2_to_human(script2, net):
+#     try:
+#         pubkey = script2[1:-1]
+#         script2_test = pubkey_to_script2(pubkey)
+#     except:
+#         pass
+#     else:
+#         if script2_test == script2:
+#             return 'Pubkey. Address: %s' % (pubkey_to_address(pubkey, net), )
+#     
+#     try:
+#         pubkey_hash = pack.IntType(160).unpack(script2[3:-2])
+#         script2_test2 = pubkey_hash_to_script2(pubkey_hash)
+#     except:
+#         pass
+#     else:
+#         if script2_test2 == script2:
+#             return 'Address. Address: %s' % (pubkey_hash_to_address(pubkey_hash, net), )
+#     
+#     return 'Unknown. Script: %s'  % (script2.encode('hex'), )
 
 if __name__=="__main__":
     #     

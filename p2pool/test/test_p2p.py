@@ -4,7 +4,7 @@ from twisted.internet import defer, endpoints, protocol, reactor
 from twisted.trial import unittest
 
 from p2pool import networks, p2p
-from p2pool.decred import data as decred_data
+from p2pool.decred import decred_data
 from p2pool.util import deferral
 
 

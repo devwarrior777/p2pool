@@ -10,7 +10,7 @@ from twisted.trial import unittest
 from twisted.web import client, resource, server
 
 from p2pool import data, node, work, main
-from p2pool.decred import data as decred_data, networks, worker_interface
+from p2pool.decred import decred_data, networks, worker_interface
 from p2pool.util import deferral, jsonrpc, math, variable
 
 class dcrd(object): # can be used as p2p factory, p2p protocol, or rpc jsonrpc proxy

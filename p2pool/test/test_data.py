@@ -2,7 +2,7 @@ import random
 import unittest
 
 from p2pool import data
-from p2pool.decred import data as decred_data
+from p2pool.decred import decred_data
 from p2pool.test.util import test_forest
 from p2pool.util import forest
 

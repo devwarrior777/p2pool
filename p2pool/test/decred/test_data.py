@@ -1,32 +1,32 @@
 import unittest
 
-from p2pool.decred import data, networks
+from p2pool.decred import decred_data, decred_addr, networks
 from p2pool.util import pack
 
 
 class Test(unittest.TestCase):
     def test_header_hash(self):
-        assert data.hash256(data.block_header_type.pack(dict(
+        assert decred_data.hash256(decred_data.block_header_type.pack(dict(
             version=1,
             previous_block=0x000000000000038a2a86b72387f93c51298298a732079b3b686df3603d2f6282,
             merkle_root=0x37a43a3b812e4eb665975f46393b4360008824aab180f27d642de8c28073bc44,
             timestamp=1323752685,
-            bits=data.FloatingInteger(437159528),
+            bits=decred_data.FloatingInteger(437159528),
             nonce=3658685446,
         ))) == 0x000000000000003aaaf7638f9f9c0d0c60e8b0eb817dcdb55fd2b1964efc5175
     
     def test_header_hash_litecoin(self):
-        assert networks.nets['litecoin'].POW_FUNC(data.block_header_type.pack(dict(
+        assert networks.nets['litecoin'].POW_FUNC(decred_data.block_header_type.pack(dict(
             version=1,
             previous_block=0xd928d3066613d1c9dd424d5810cdd21bfeef3c698977e81ec1640e1084950073,
             merkle_root=0x03f4b646b58a66594a182b02e425e7b3a93c8a52b600aa468f1bc5549f395f16,
             timestamp=1327807194,
-            bits=data.FloatingInteger(0x1d01b56f),
+            bits=decred_data.FloatingInteger(0x1d01b56f),
             nonce=20736,
         ))) < 2**256//2**30
     
     def test_tx_hash(self):
-        assert data.hash256(data.tx_type.pack(dict(
+        assert decred_data.hash256(decred_data.tx_type.pack(dict(
             version=1,
             tx_ins=[dict(
                 previous_output=None,
@@ -35,16 +35,16 @@ class Test(unittest.TestCase):
             )],
             tx_outs=[dict(
                 value=5003880250,
-                script=data.pubkey_hash_to_script2(pack.IntType(160).unpack('ca975b00a8c203b8692f5a18d92dc5c2d2ebc57b'.decode('hex'))),
+                script=decred_addr.pubkey_hash_to_script2(pack.IntType(160).unpack('ca975b00a8c203b8692f5a18d92dc5c2d2ebc57b'.decode('hex'))),
             )],
             lock_time=0,
         ))) == 0xb53802b2333e828d6532059f46ecf6b313a42d79f97925e457fbbfda45367e5c
     
     def test_address_to_pubkey_hash(self):
-        assert data.address_to_pubkey_hash('1KUCp7YP5FP8ViRxhfszSUJCTAajK6viGy', networks.nets['decred']) == pack.IntType(160).unpack('ca975b00a8c203b8692f5a18d92dc5c2d2ebc57b'.decode('hex'))
+        assert decred_addr.address_to_pubkey_hash('1KUCp7YP5FP8ViRxhfszSUJCTAajK6viGy', networks.nets['decred']) == pack.IntType(160).unpack('ca975b00a8c203b8692f5a18d92dc5c2d2ebc57b'.decode('hex'))
     
     def test_merkle_hash(self):
-        assert data.merkle_hash([
+        assert decred_data.merkle_hash([
             0xb53802b2333e828d6532059f46ecf6b313a42d79f97925e457fbbfda45367e5c,
             0x326dfe222def9cf571af37a511ccda282d83bedcc01dabf8aa2340d342398cf0,
             0x5d2e0541c0f735bac85fa84bfd3367100a3907b939a0c13e558d28c6ffd1aea4,
