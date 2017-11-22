@@ -214,7 +214,7 @@ def script2_to_human(script2, net):
 
 if __name__=="__main__":
     #     
-    # Test data for mainnet - ripemd(Blake256) - TODO:
+    # Test data for mainnet
     #
     class MainnetSec:
         ADDRESS_VERSION_NET  = 7    # Mainnet
@@ -222,15 +222,13 @@ if __name__=="__main__":
 
     class Testnet2Sec:
         ADDRESS_VERSION_NET  = 15   # TestNet2
-        ADDRESS_VERSION_ALGO = 33   # Secp256k1
-        
+        ADDRESS_VERSION_ALGO = 33   # Secp256k1       
 
     #
     # MAINNET
     #
     # Test pubkey -> pubkey_hash -> address -> pubkey_hash
     #
-    #   "isvalid": true,
     #   "address": "DsaZa37gEchYWc9rhfxFyf3E43yDxwA9cxV",
     #   "ismine": true,
     #   "pubkeyaddr": "DkM4GitLmfHSdxJtSWnwjbftW2FU828E5xsoku5bPCtK3FNaxBSw8",

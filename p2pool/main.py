@@ -65,9 +65,14 @@ class keypool():
         self.stamp = n
 
     def paytotal(self):
+        #global node
         self.payouttotal = 0.0
-        for i in range(len(pubkeys.keys)):
-            self.payouttotal += node.get_current_txouts().get(decred_addr.pubkey_hash_to_script2(pubkeys.keys[i]), 0)*1e-8
+        #gf:->
+        #for i in range(len(pubkeys.keys)):
+        #    self.payouttotal += node.get_current_txouts().get(decred_addr.pubkey_hash_to_script2(pubkeys.keys[i]), 0)*1e-8
+        for i in range(len(self.keys)):
+            self.payouttotal += node.get_current_txouts().get(decred_addr.pubkey_hash_to_script2(self.keys[i]), 0)*1e-8
+        #<-gf:
         return self.payouttotal
 
     def getpaytotal(self):
