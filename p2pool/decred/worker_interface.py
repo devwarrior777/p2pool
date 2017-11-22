@@ -8,7 +8,7 @@ import sys
 from twisted.internet import defer
 
 import p2pool
-from p2pool.decred import data as decred_data, getwork
+from p2pool.decred import decred_data, getwork
 from p2pool.util import expiring_dict, jsonrpc, pack, variable
 
 class _Provider(object):

@@ -11,7 +11,7 @@ from twisted.python import failure, log
 
 import p2pool
 from p2pool import data as p2pool_data
-from p2pool.decred import data as decred_data
+from p2pool.decred import decred_data
 from p2pool.util import deferral, p2protocol, pack, variable
 
 class PeerMisbehavingError(Exception):

@@ -2,7 +2,7 @@ from twisted.internet import defer
 from twisted.python import log
 
 import p2pool
-from p2pool.decred import data as decred_data
+from p2pool.decred import decred_data
 from p2pool.util import deferral, forest, jsonrpc, variable
 
 class HeaderWrapper(object):

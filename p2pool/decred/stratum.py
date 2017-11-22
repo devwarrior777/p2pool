@@ -4,7 +4,7 @@ import sys
 from twisted.internet import protocol, reactor
 from twisted.python import log
 
-from p2pool.decred import data as decred_data, getwork
+from p2pool.decred import decred_data, getwork
 from p2pool.util import expiring_dict, jsonrpc, pack
 
 

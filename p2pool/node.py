@@ -6,7 +6,7 @@ from twisted.internet import defer, reactor
 from twisted.python import log
 
 from p2pool import data as p2pool_data, p2p
-from p2pool.decred import data as decred_data, helper, height_tracker
+from p2pool.decred import decred_data, decred_addr, helper, height_tracker
 from p2pool.util import deferral, variable
 
 

@@ -13,9 +13,9 @@ from p2pool.util import pack
 
 P2P_PREFIX = 'F900B4D9'.decode('hex')   # MsgVersion 1..5 #
 P2P_PORT = 9108
-ADDRESS_PREFIX1 = 'D'
-ADDRESS_PREFIX2 = 's'
-ADDRESS_VERSION = 76
+# Ds... addresses
+ADDRESS_VERSION_NET = 7
+ADDRESS_VERSION_ALGO = 63
 RPC_PORT = 9109
 RPC_WALLET_PORT = 9110
 

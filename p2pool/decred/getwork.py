@@ -1,11 +1,11 @@
 '''
-Representation of a getwork request/reply
+Representation of a getwork request/reply           - BITCOIN SPECIFIC
 '''
 
 from __future__ import division
 
-from . import data as decred_data
-from . import sha256                    # <- merkle tree hashed with blake? Yes!
+import decred_data
+import blake                    # <- merkle tree hashed with blake? Yes!
 from p2pool.util import pack
 
 def _swap4(s):

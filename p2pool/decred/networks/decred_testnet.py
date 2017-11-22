@@ -8,9 +8,9 @@ from p2pool.util import pack
 
 P2P_PREFIX = '65A0E748'.decode('hex')
 P2P_PORT = 19108
-ADDRESS_PREFIX1 = 'T'
-ADDRESS_PREFIX2 = 's'
-ADDRESS_VERSION = 0 #111
+# Ts... addresses
+ADDRESS_VERSION_NET = 15
+ADDRESS_VERSION_ALGO = 33
 RPC_PORT = 19109
 RPC_WALLET_PORT = 19110
 # RPC_CHECK = defer.inlineCallbacks(lambda dcrd: defer.returnValue(

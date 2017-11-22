@@ -12,7 +12,7 @@ from twisted.python import log
 from twisted.web import resource, static
 
 import p2pool
-from p2pool.decred import data as decred_data
+from p2pool.decred import decred_data
 from . import data as p2pool_data, p2p
 from util import deferral, deferred_resource, graph, math, memory, pack, variable
 

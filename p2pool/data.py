@@ -9,7 +9,7 @@ import time
 from twisted.python import log
 
 import p2pool
-from p2pool.decred import data as decred_data, script, sha256
+from p2pool.decred import script, sha256, decred_data, decred_addr
 from p2pool.util import math, forest, pack
 
 def parse_bip0034(coinbase):
@@ -173,7 +173,7 @@ class NewShare(object):
         assert total_weight == sum(weights.itervalues()) + donation_weight, (total_weight, sum(weights.itervalues()) + donation_weight)
         
         amounts = dict((script, share_data['subsidy']*(199*weight)//(200*total_weight)) for script, weight in weights.iteritems()) # 99.5% goes according to weights prior to this share
-        this_script = decred_data.pubkey_hash_to_script2(share_data['pubkey_hash'])
+        this_script = decred_addr.pubkey_hash_to_script2(share_data['pubkey_hash'])
         amounts[this_script] = amounts.get(this_script, 0) + share_data['subsidy']//200 # 0.5% goes to block finder
         amounts[DONATION_SCRIPT] = amounts.get(DONATION_SCRIPT, 0) + share_data['subsidy'] - sum(amounts.itervalues()) # all that's left over is the donation weight and some extra satoshis due to rounding
         
@@ -258,7 +258,7 @@ class NewShare(object):
         self.target = self.share_info['bits'].target
         self.timestamp = self.share_info['timestamp']
         self.previous_hash = self.share_data['previous_share_hash']
-        self.new_script = decred_data.pubkey_hash_to_script2(self.share_data['pubkey_hash'])
+        self.new_script = decred_addr.pubkey_hash_to_script2(self.share_data['pubkey_hash'])
         self.desired_version = self.share_data['desired_version']
         self.absheight = self.share_info['absheight']
         self.abswork = self.share_info['abswork']
@@ -493,7 +493,7 @@ class Share(object):
         assert total_weight == sum(weights.itervalues()) + donation_weight, (total_weight, sum(weights.itervalues()) + donation_weight)
         
         amounts = dict((script, share_data['subsidy']*(199*weight)//(200*total_weight)) for script, weight in weights.iteritems()) # 99.5% goes according to weights prior to this share
-        this_script = decred_data.pubkey_hash_to_script2(share_data['pubkey_hash'])
+        this_script = decred_addr.pubkey_hash_to_script2(share_data['pubkey_hash'])
         amounts[this_script] = amounts.get(this_script, 0) + share_data['subsidy']//200 # 0.5% goes to block finder
         amounts[DONATION_SCRIPT] = amounts.get(DONATION_SCRIPT, 0) + share_data['subsidy'] - sum(amounts.itervalues()) # all that's left over is the donation weight and some extra satoshis due to rounding
         
@@ -578,7 +578,7 @@ class Share(object):
         self.target = self.share_info['bits'].target
         self.timestamp = self.share_info['timestamp']
         self.previous_hash = self.share_data['previous_share_hash']
-        self.new_script = decred_data.pubkey_hash_to_script2(self.share_data['pubkey_hash'])
+        self.new_script = decred_addr.pubkey_hash_to_script2(self.share_data['pubkey_hash'])
         self.desired_version = self.share_data['desired_version']
         self.absheight = self.share_info['absheight']
         self.abswork = self.share_info['abswork']
@@ -705,7 +705,7 @@ class WeightsSkipList(forest.TrackerSkipList):
     # share_count, weights, total_weight
     
     def get_delta(self, element):
-        from p2pool.decred import data as decred_data
+        from p2pool.decred import decred_data
         share = self.tracker.items[element]
         att = decred_data.target_to_average_attempts(share.target)
         return 1, {share.new_script: att*(65535-share.share_data['donation'])}, att*65535, att*share.share_data['donation']

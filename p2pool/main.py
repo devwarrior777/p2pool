@@ -20,7 +20,7 @@ from twisted.python import log
 from nattraverso import portmapper, ipdiscover
 
 import decred.p2p as decred_p2p
-import decred.data as decred_data
+import decred.decred_data as decred_data
 import decred.decred_addr as decred_addr
 from p2pool.decred import stratum, worker_interface, helper
 from util import fixargparse, jsonrpc, variable, deferral, math, logging, switchprotocol
@@ -120,8 +120,7 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
         deferral.RobustLoopingCall(poll_warnings).start(20*60)
         
         print '    ...success!'
-        print '    Current block hash: {}'.format(temp_work['previous_block'])
-        print(temp_work['height'], type(temp_work['height']))
+        print '    Current block hash: {0:x}'.format(temp_work['previous_block'])
         print '    Current block height: {}'.format(temp_work['height'] - 1)
         print
         
@@ -130,7 +129,7 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
         
         print 'Determining payout address...'
         pubkeys = keypool()
-        if args.pubkey_hash is None and args.address != 'dynamic':                  # TODO: Always use dynamic
+        if args.pubkey_hash is None:
             address_path = os.path.join(datadir_path, 'cached_payout_address')
             
             if os.path.exists(address_path):
@@ -150,43 +149,18 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
             if address is None:
                 raise Exception('Failed to get an address from local wallet')
             
-            res = yield deferral.retry('Error validating address:', 5) \
-                                        (lambda: dcrwallet.rpc_validateaddress(address))()
-            if not res['isvalid'] or not res['ismine']:
-                print '    Local address is either invalid or not controlled by local dcrwallet!'
-                address = None
-            
-            if address is None:
-                raise Exception('Failed to validate local wallet address')
-            
-            my_pubkey_hash = res['pubkeyaddr']
-            print '    ...success! Payout address:', my_pubkey_hash
-            print
-            #<-gf:
-            
+            my_pubkey_hash = decred_addr.address_to_pubkey_hash(address, net.PARENT)
+
             pubkeys.addkey(my_pubkey_hash)
-        elif args.address != 'dynamic':                 # Maybe this is safer .. but no checks...
+            
+            print '    ...success! Payout address:', address, 'pubkey hash', my_pubkey_hash
+            print
+            
+        else:
             my_pubkey_hash = args.pubkey_hash
             print '    ...success! Payout address:', decred_addr.pubkey_hash_to_address(my_pubkey_hash, net.PARENT)
             print
             pubkeys.addkey(my_pubkey_hash)
-        else:
-            print '    Entering dynamic address mode.'
-
-            if args.numaddresses < 2:
-                print ' ERROR: Can not use fewer than 2 addresses in dynamic mode. Resetting to 2.'
-                args.numaddresses = 2
-            for i in range(args.numaddresses):
-                address = yield deferral.retry('Error getting a dynamic address from dcrd:', 5)(lambda: dcrwallet.rpc_getnewaddress('p2pool'))()
-                new_pubkey = decred_addr.address_to_pubkey_hash(address, net.PARENT)
-                pubkeys.addkey(new_pubkey)
-
-            pubkeys.updatestamp(time.time())
-
-            my_pubkey_hash = pubkeys.keys[0]
-
-            for i in range(len(pubkeys.keys)):
-                print '    ...payout %d: %s' % (i, decred_addr.pubkey_hash_to_address(pubkeys.keys[i], net.PARENT),)
         
         print "Loading shares..."
         shares = {}
@@ -467,7 +441,7 @@ def run():
         help='enable debugging mode',
         action='store_const', const=True, default=False, dest='debug')
     parser.add_argument('-a', '--address',
-        help='generate payouts to this address (default: <address requested from dcrd>), or (dynamic)',
+        help='generate payouts to this address (default: <address requested from dcrwallet> not a good idea?)',
         type=str, action='store', default=None, dest='address')
     parser.add_argument('-i', '--numaddresses',
         help='number of decred auto-generated addresses to maintain for getwork dynamic address allocation',
@@ -624,18 +598,13 @@ def run():
         addr, port = args.worker_endpoint.rsplit(':', 1)
         worker_endpoint = addr, int(port)
     
-    if args.address is not None and args.address != 'dynamic':
+    if args.address is not None:
         try:
             args.pubkey_hash = decred_addr.address_to_pubkey_hash(args.address, net.PARENT)
         except Exception, e:
             parser.error('error parsing address: ' + repr(e))
     else:
         args.pubkey_hash = None
-    
-    #gf->
-    if args.testnet:
-        args.pubkey_hash = u'TkQ4652aFF6wocnxbkuTK3bCVAqJci4jTQZRbB6kcaisub8WnPi5U'
-    #<-gf
     
     
     def separate_url(url):

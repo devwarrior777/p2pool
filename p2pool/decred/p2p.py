@@ -8,7 +8,7 @@ import time
 
 from twisted.internet import protocol
 
-import p2poolfrom . import data as decred_data
+import p2poolfrom p2pool.decred import decred_data
 from p2pool.util import deferral, p2protocol, pack, variable
 
 class Protocol(p2protocol.Protocol):

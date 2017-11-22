@@ -62,9 +62,6 @@ class Protocol(protocol.Protocol):
                 continue
             
             try:
-                if command=='headers':
-                    print 'send getheaders'
-                    fred = type_.unpack(payload, self.ignore_trailing_payload)
                 self.packetReceived(command, type_.unpack(payload, self.ignore_trailing_payload))
             except:
                 print 'RECV', command, payload[:100].encode('hex') + ('...' if len(payload) > 100 else '')
@@ -72,8 +69,6 @@ class Protocol(protocol.Protocol):
                 self.disconnect()
     
     def packetReceived(self, command, payload2):
-        if command=='headers':
-            print 'getheaders response'
         handler = getattr(self, 'handle_' + command, None)
         if handler is None:
             if p2pool.DEBUG:

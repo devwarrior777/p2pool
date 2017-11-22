@@ -10,7 +10,9 @@ import time
 from twisted.internet import defer
 from twisted.python import log
 
-import decred.getwork as decred_getwork, decred.data as decred_data
+#import p2pool.decred.getwork as decred_getwork
+import p2pool.decred.decred_data as decred_data
+import p2pool.decred.decred_addr as decred_addr
 from p2pool.decred import helper, script, worker_interface
 from util import forest, jsonrpc, variable, deferral, math, pack
 import p2pool, p2pool.data as p2pool_data
@@ -155,12 +157,12 @@ class WorkerBridge(worker_interface.WorkerBridge):
         self.address_throttle=time.time()
         print "ATTEMPTING TO FRESHEN ADDRESS."
         self.address = yield deferral.retry('Error getting a dynamic address from dcrd:', 5)(lambda: self.dcrd.rpc_getnewaddress('p2pool'))()
-        new_pubkey = decred_data.address_to_pubkey_hash(self.address, self.net)
+        new_pubkey = decred_addr.address_to_pubkey_hash(self.address, self.net)
         self.pubkeys.popleft()
         self.pubkeys.addkey(new_pubkey)
         print " Updated payout pool:"
         for i in range(len(self.pubkeys.keys)):
-            print '    ...payout %d: %s(%f)' % (i, decred_data.pubkey_hash_to_address(self.pubkeys.keys[i], self.net),self.pubkeys.keyweights[i],)
+            print '    ...payout %d: %s(%f)' % (i, decred_addr.pubkey_hash_to_address(self.pubkeys.keys[i], self.net),self.pubkeys.keyweights[i],)
         self.pubkeys.updatestamp(c)
         print " Next address rotation in : %fs" % (time.time()-c+self.args.timeaddresses)
  
@@ -198,7 +200,7 @@ class WorkerBridge(worker_interface.WorkerBridge):
             pubkey_hash = self.my_pubkey_hash
         else:
             try:
-                pubkey_hash = decred_data.address_to_pubkey_hash(user, self.node.net.PARENT)
+                pubkey_hash = decred_addr.address_to_pubkey_hash(user, self.node.net.PARENT)
             except: # XXX blah
                 if self.args.address != 'dynamic':
                     pubkey_hash = self.my_pubkey_hash
@@ -366,7 +368,7 @@ class WorkerBridge(worker_interface.WorkerBridge):
                 print_throttle = time.time()
 
         #need this for stats
-        self.last_work_shares.value[decred_data.pubkey_hash_to_address(pubkey_hash, self.node.net.PARENT)]=share_info['bits']
+        self.last_work_shares.value[decred_addr.pubkey_hash_to_address(pubkey_hash, self.node.net.PARENT)]=share_info['bits']
         
         ba = dict(
             version=min(self.current_work.value['version'], 3),

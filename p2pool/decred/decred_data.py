@@ -229,7 +229,11 @@ class SerializedTx(object):
             return self._type_4.pack(obj)
         else:
             raise AssertionError('Unknown serializaation type {}'.format(sertype))
+    
+    def packed_size(self):
+        return 0
         
+            
     #dummy read/write - TODO: pass back something sensible if called
     def read(self,file):
         return file

@@ -4,7 +4,7 @@ import time
 from twisted.internet import defer
 
 import p2pool
-from p2pool.decred import data as decred_data
+from p2pool.decred import decred_data
 from p2pool.util import deferral, jsonrpc
 
 @deferral.retry('Error while checking Decred connection:', 1)
