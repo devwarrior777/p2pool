@@ -9,6 +9,7 @@ import platform
 from twisted.internet import defer
 from .. import helper
 from p2pool.util import pack
+from p2pool.decred.blake import BLAKE
 
 
 P2P_PREFIX = 'F900B4D9'.decode('hex')   # MsgVersion 1..5 #
@@ -26,7 +27,7 @@ RPC_CHECK = defer.inlineCallbacks(lambda dcrd: defer.returnValue(
         ))
 SUBSIDY_FUNC = lambda height: 50*100000000 >> (height + 1)//210000
 ###POW_FUNC = POW_FUNC = lambda data: pack.IntType(256).unpack(__import__('blake_hash').getPoWHash(data))  <-- FIXME
-POW_FUNC = POW_FUNC = lambda data: pack.IntType(256).unpack(__import__('blake_hash').getPoWHash(data))
+POW_FUNC = lambda data: pack.IntType(256).unpack(BLAKE(256).digest(data))
 BLOCK_PERIOD = 300 # s
 SYMBOL = 'DCR'
 CONF_FILE_FUNC = lambda: os.path.join(os.path.join(os.environ['LOCALAPPDATA'], 'dcrd') if platform.system() == 'Windows' else os.path.expanduser('~/Library/Application Support/dcrd/') if platform.system() == 'Darwin' else os.path.expanduser('~/.dcrd'), 'dcrd.conf')

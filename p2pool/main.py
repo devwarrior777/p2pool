@@ -108,12 +108,13 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
         dcrd = jsonrpc.HTTPProxy(url, dict(Authorization='Basic ' + base64.b64encode(args.dcrd_rpc_username + ':' + args.dcrd_rpc_password)), timeout=30)
         yield helper.check(dcrd, net)
 
-        # wallet separate
-        # 9111/19111
-        walleturl = '%s://%s:%i/' % ('https' if args.dcrd_rpc_ssl else 'http', args.dcrd_address, args.dcrd_rpc_wallet_port)
-        print '''Testing dcrdwallet RPC connection to '%s' with username '%s'...''' % (walleturl, args.dcrd_rpc_username)
-        dcrwallet = jsonrpc.HTTPProxy(walleturl, dict(Authorization='Basic ' + base64.b64encode(args.dcrd_rpc_username + ':' + args.dcrd_rpc_password)), timeout=30)
-        yield helper.checkwallet(dcrwallet, net)
+        if args.pubkey_hash is None:
+            # wallet separate
+            # 9111/19111
+            walleturl = '%s://%s:%i/' % ('https' if args.dcrd_rpc_ssl else 'http', args.dcrd_address, args.dcrd_rpc_wallet_port)
+            print '''Testing dcrdwallet RPC connection to '%s' with username '%s'...''' % (walleturl, args.dcrd_rpc_username)
+            dcrwallet = jsonrpc.HTTPProxy(walleturl, dict(Authorization='Basic ' + base64.b64encode(args.dcrd_rpc_username + ':' + args.dcrd_rpc_password)), timeout=30)
+            yield helper.checkwallet(dcrwallet, net)
 
         temp_work = yield helper.getwork(dcrd)
         
@@ -148,8 +149,8 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
                 print '    Getting payout address from dcrwallet...not a great idea...'
                 address = yield deferral.retry('Error getting payout address from local dcrwallet:', 5) \
                                                 (lambda: dcrwallet.rpc_getaccountaddress('default'))()
-            with open(address_path, 'wb') as f:
-                f.write(address)
+                with open(address_path, 'wb') as f:
+                    f.write(address)
             
             if address is None:
                 raise Exception('Failed to get an address from local wallet')
