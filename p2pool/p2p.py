@@ -512,6 +512,7 @@ class ServerFactory(protocol.ServerFactory):
         def attempt_listen():
             if self.running:
                 self.listen_port = reactor.listenTCP(self.node.port, self)
+                print('attempt_listen', self.listen.port)
         deferral.retry('Error binding to P2P port:', traceback=False)(attempt_listen)()
     
     def stop(self):

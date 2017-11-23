@@ -7,7 +7,7 @@ import warnings
 import p2pool
 from p2pool.util import math, pack
 from p2pool.decred.blake import BLAKE
-import struct
+#import struct
 
 
 def hash256(data):
@@ -15,12 +15,6 @@ def hash256(data):
 
 def hash256_sha(data):
     return pack.IntType(256).unpack(hashlib.sha256(hashlib.sha256(data).digest()).digest())
-
-#gf: blake or sha256d here?
-def hash160(data):
-    if data == '04ffd03de44a6e11b9917f3a29f9443283d9871c9d743ef30d5eddcd37094b64d1b3d8090496b53256786bf5c82932ec23c3b74d9f05a6f95a8b5529352656664b'.decode('hex'):
-        return 0x384f570ccc88ac2e7e00b026d1690a3fca63dd0 # hack for people who don't have openssl - this is the only value that p2pool ever hashes
-    return pack.IntType(160).unpack(hashlib.new('ripemd160', hashlib.sha256(data).digest()).digest())
 
 class FloatingInteger(object):
     __slots__ = ['bits', '_target']
@@ -193,7 +187,24 @@ class SerializedTx(object):
         self._type_3 = type_3
         self._type_4 = type_4
         self._unpacked = False
-        self.sertype = 0
+        self.sertype = -1
+        
+    def _get_txtype_for_sertype(self):
+        if not self._unpacked:
+            raise SerializedTxException('invalid state - not unpacked into record struct yet')
+        #
+        if self.sertype == 0:
+            return self._type_0
+        elif self.sertype == 1:
+            return self._type_1
+        elif self.sertype == 2:
+            return self._type_2
+        elif self.sertype == 3:
+            return self._type_3
+        elif self.sertype == 4:
+            return self._type_4
+        else:
+            raise AssertionError('Unknown serialization type {}'.format(self.sertype))
     
     def unpack(self, packed_tx, ignore_trailing=False):
         '''
@@ -201,26 +212,12 @@ class SerializedTx(object):
         
         We assume the data is packed 'bytes'. Serialization type is the second little endian word.
         '''
-        s = (packed_tx[3] + packed_tx[2]).encode('hex')
-        sertype = int(s,16)
-        self.sertype = sertype
-        if sertype == 0:
-            self._unpacked = True
-            return self._type_0.unpack(packed_tx)
-        elif sertype == 1:
-            self._unpacked = True
-            return self._type_1.unpack(packed_tx)
-        elif sertype == 2:
-            self._unpacked = True
-            return self._type_2.unpack(packed_tx)
-        elif sertype == 3:
-            self._unpacked = True
-            return self._type_3.unpack(packed_tx)
-        elif sertype == 4:
-            self._unpacked = True
-            return self._type_4.unpack(packed_tx)
-        else:
-            raise AssertionError('Unknown serialization type {}'.format(sertype))
+        w = (packed_tx[3] + packed_tx[2]).encode('hex')
+        self.sertype = int(w,16)
+        #
+        self._unpacked = True
+        txtype = self._get_txtype_for_sertype()
+        return txtype.unpack(packed_tx)
         
     def pack(self, obj):
         '''
@@ -228,22 +225,9 @@ class SerializedTx(object):
         
         Serialization type is the cached sertype variable.
         '''
-        if not self._unpacked:
-            raise SerializedTxException('pack called before unpack')
         #
-        sertype = self.sertype
-        if sertype == 0:
-            return self._type_0.pack(obj)
-        elif sertype == 1:
-            return self._type_1.pack(obj)
-        elif sertype == 2:
-            return self._type_2.pack(obj)
-        elif sertype == 3:
-            return self._type_3.pack(obj)
-        elif sertype == 4:
-            return self._type_4.pack(obj)
-        else:
-            raise AssertionError('Unknown serialization type {}'.format(sertype))
+        txtype = self._get_txtype_for_sertype()
+        return txtype.pack(obj)
     
     def packed_size(self, obj):
         '''
@@ -251,29 +235,17 @@ class SerializedTx(object):
         
         Serialization type is the cached sertype variable.
         '''
-        if not self._unpacked:
-            raise SerializedTxException('packed_size called before unpack')
-        #
-        sertype = self.sertype
-        if sertype == 0:
-            return self._type_0.packed_size(obj)
-        elif sertype == 1:
-            return self._type_1.packed_size(obj)
-        elif sertype == 2:
-            return self._type_2.packed_size(obj)
-        elif sertype == 3:
-            return self._type_3.packed_size(obj)
-        elif sertype == 4:
-            return self._type_4.packed_size(obj)
-        else:
-            raise AssertionError('Unknown serialization type {}'.format(sertype))
-        
-            
-    #dummy read/write - TODO: pass back something sensible if called
+        txtype = self._get_txtype_for_sertype()
+        return txtype.packed_size(obj)
+                    
     def read(self,file):
-        return file
+        txtype = self._get_txtype_for_sertype()
+        return txtype.read(file)
+
     def write(self, file, item):
-        return file, item
+        txtype = self._get_txtype_for_sertype()
+        return txtype.write(file, item)
+    
 #
 # General tx_type. Actual type specified by bytes 2, 3 of the initial 4-byte version
 #
