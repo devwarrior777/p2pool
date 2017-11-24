@@ -1,0 +1,15 @@
+
+Update to Decred specific parameters such as RPC,P2P ports, etc
+P2Pool assumes everything is bitcoin ;)
+P2Pool assumes all hashing is sha256.
+	- Update P2P payload checksum to blake256
+	- Update pubkey_hash <-> Ts/Ds addresses using blake256(blake256) + ripemd160(blake256))
+	- Update rebuilding merkle tree using blake256
+P2Pool assumes transactions just have one basic format, decred has 5 - fix python structures
+P2Pool makes payout scripts - assumes bitcoin opcodes
+	- update to blake256
+	- rework scripts
+...
+
+
+

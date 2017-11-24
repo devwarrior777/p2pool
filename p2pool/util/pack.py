@@ -297,12 +297,7 @@ class ComposedType(Type):
     def read(self, file):
         item = self.record_type()
         for key, type_ in self.fields:
-            try:
-                item[key], file = type_.read(file)
-            except Exception as err:
-                print 'bug'
-                tb = traceback.format_exc()
-                print(tb)
+            item[key], file = type_.read(file)
         return item, file
     
     def write(self, file, item):
