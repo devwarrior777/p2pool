@@ -1,7 +1,7 @@
 '''
 Generic message-based protocol used by Bitcoin and P2Pool for P2P communication
 
-gf: Change payload hashing to Blake256
+gf: Changed payload hashing to Blake256
 '''
 
 import struct
@@ -56,6 +56,7 @@ class Protocol(protocol.Protocol):
                 continue
             
             type_ = getattr(self, 'message_' + command, None)
+            print(command,length, payload[:4])
             if type_ is None:
                 if p2pool.DEBUG:
                     print 'no type for', repr(command)

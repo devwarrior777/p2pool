@@ -1,6 +1,6 @@
 import unittest
 
-from p2pool.decred import getwork, data as decred_data
+from p2pool.decred import getwork, decred_data
 
 class Test(unittest.TestCase):
     def test_all(self):

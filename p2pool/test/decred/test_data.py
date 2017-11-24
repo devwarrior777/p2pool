@@ -14,7 +14,7 @@ class Test(unittest.TestCase):
             bits=decred_data.FloatingInteger(437159528),
             nonce=3658685446,
         ))) == 0x000000000000003aaaf7638f9f9c0d0c60e8b0eb817dcdb55fd2b1964efc5175
-    
+     
     def test_header_hash_litecoin(self):
         assert networks.nets['litecoin'].POW_FUNC(decred_data.block_header_type.pack(dict(
             version=1,
@@ -24,7 +24,7 @@ class Test(unittest.TestCase):
             bits=decred_data.FloatingInteger(0x1d01b56f),
             nonce=20736,
         ))) < 2**256//2**30
-    
+     
     def test_tx_hash(self):
         assert decred_data.hash256(decred_data.tx_type.pack(dict(
             version=1,
@@ -39,10 +39,10 @@ class Test(unittest.TestCase):
             )],
             lock_time=0,
         ))) == 0xb53802b2333e828d6532059f46ecf6b313a42d79f97925e457fbbfda45367e5c
-    
+     
     def test_address_to_pubkey_hash(self):
         assert decred_addr.address_to_pubkey_hash('1KUCp7YP5FP8ViRxhfszSUJCTAajK6viGy', networks.nets['decred']) == pack.IntType(160).unpack('ca975b00a8c203b8692f5a18d92dc5c2d2ebc57b'.decode('hex'))
-    
+     
     def test_merkle_hash(self):
         assert decred_data.merkle_hash([
             0xb53802b2333e828d6532059f46ecf6b313a42d79f97925e457fbbfda45367e5c,

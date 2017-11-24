@@ -20,14 +20,34 @@ def check(dcrd, net):
         print >>sys.stderr, '    ' + version_check_result
         raise deferral.RetrySilentlyException()
 
-@deferral.retry('Error while checking Decred Wallet connection:', 1)
+#gf: check forever
+# @deferral.retry('Error while checking Decred Wallet connection:', delay=1)
+# @defer.inlineCallbacks
+# def checkwallet(dcrdwallet, net, tries):
+#     print('wallet_check')
+#     wallet_dcrd_server_check_result = (yield dcrdwallet.rpc_walletinfo())['daemonconnected']
+#     tries = tries - 1 
+#     if wallet_dcrd_server_check_result == False:
+#         print >>sys.stderr, '    ' + wallet_dcrd_server_check_result
+#         raise deferral.RetrySilentlyException()
+
+#
+# Check 3 up to times if the wallet is online
+#
+# @return True if online, False if not online
+#
 @defer.inlineCallbacks
-def checkwallet(dcrdwallet, net):
+def checkwallet(dcrdwallet, net, tries=3, waittime=1):
     print('wallet_check')
-    wallet_dcrd_server_check_result = (yield dcrdwallet.rpc_walletinfo())['daemonconnected']
-    if wallet_dcrd_server_check_result == False:
-        print >>sys.stderr, '    ' + wallet_dcrd_server_check_result
-        raise deferral.RetrySilentlyException()
+    for i in range(tries):
+        res = False
+        try:
+            res = (yield dcrdwallet.rpc_walletinfo())['daemonconnected']
+            defer.returnValue(True)
+        except Exception:
+            print >>sys.stderr, '... connect fail'
+            time.sleep(waittime)
+    defer.returnValue(False)
 
 @deferral.retry('Error getting work from dcrd:', 3)
 @defer.inlineCallbacks

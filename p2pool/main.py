@@ -130,14 +130,17 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
             # Connect to locally running dcrwallet instance
             #
             # - TODO: find out if we use any other wallet api's apart from the 'getaccountaddress' below.
-            #   If not we can make this self contained then remove the connection
+            #   If not we can: 
+            #    - make this self contained then remove the connection
+            #      OR
+            #    - remove all wallet connection logic and demand an address on the commandline
             #
             # wallet separate
             # 9111/19111
             walleturl = '%s://%s:%i/' % ('https' if args.dcrd_rpc_ssl else 'http', args.dcrd_address, args.dcrd_rpc_wallet_port)
             print '''Testing dcrdwallet RPC connection to '%s' with username '%s'...''' % (walleturl, args.dcrd_rpc_username)
             dcrwallet = jsonrpc.HTTPProxy(walleturl, dict(Authorization='Basic ' + base64.b64encode(args.dcrd_rpc_username + ':' + args.dcrd_rpc_password)), timeout=30)
-            yield helper.checkwallet(dcrwallet, net)
+            wallet_online = yield helper.checkwallet(dcrwallet, net)
 
         print 'Determining payout address...'
         pubkeys = keypool()
@@ -151,7 +154,7 @@ def main(args, net, datadir_path, merged_urls, worker_endpoint):
             else:
                 address = None
                 
-            if address is None:
+            if address is None and wallet_online:
                 print '    Getting payout address from local dcrwallet...not a great idea...'
                 address = yield deferral.retry('Error getting payout address from local dcrwallet:', 5) \
                                                 (lambda: dcrwallet.rpc_getaccountaddress('default'))()

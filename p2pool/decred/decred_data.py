@@ -11,7 +11,7 @@ from p2pool.decred.blake import BLAKE
 
 
 def hash256(data):
-    return pack.IntType(256).unpack(BLAKE(256).digest(data))
+    return pack.IntType(256).unpack(BLAKE(256).digest(BLAKE(256).digest(data)))
 
 def hash256_sha(data):
     return pack.IntType(256).unpack(hashlib.sha256(hashlib.sha256(data).digest()).digest())
@@ -471,7 +471,21 @@ if __name__=="__main__":
     fib = FloatingInteger(bits)
     print(fib,(type(fib)))
     print
+    
+    #
+    # merkle trees
+    #
+    mh = merkle_hash([
+        0x376f0ebd49b418f3102f31999d4d259b1610f2a2e4f0657e30744bd49535d57a,
+        0xfcb6b9aa6863b1dd573dec200f2e7ce695ab6bb7ca75a257ce6458ec663a5988,
+        0xb5c64c08be13cb394005c153e14d744b42af854d71adfde37f286fb5208a0c1a,
+        0xb7554c25e804153a86392eba02debd388a54a7401b2e57f6e9492a8a6c8b8fd4,
+        0x8a83d79fc6ee8205e77651ed21b549958263f58fc4abdd686769139451ea38b4
+    ])
 
+    print(mh,hex(mh))
+
+    assert mh == 0xb1c98894bbd6830ca68463baf20cef3f5148a168e945164b289e89d29638521f
     
     
     

@@ -242,7 +242,7 @@ if __name__=="__main__":
     # pubkey -> pubkey_hash
     #
     pubkey_hash = pubkey_to_pubkey_hash(compressed_pubkey.decode('hex'))
-    print('pubkey_hash', pubkey_hash, type(pubkey_hash))
+    print('pubkey_hash', pubkey_hash, type(pubkey_hash), hex(pubkey_hash))
     #
     addr = pubkey_hash_to_address(pubkey_hash, MainnetSec)
     print('address',addr)
@@ -250,7 +250,7 @@ if __name__=="__main__":
     # address -> pub key hash
     #  
     pkh  = address_to_pubkey_hash(addr, MainnetSec)
-    print('pubkey_hash', pkh)
+    print('pubkey_hash', pkh, hex(pkh))
     #
     # pub key hash -> address
     #
@@ -277,14 +277,14 @@ if __name__=="__main__":
     # pubkey -> pubkey_hash
     #
     pubkey_hash = pubkey_to_pubkey_hash(compressed_pubkey.decode('hex'))
-    print('pubkey_hash', pubkey_hash, type(pubkey_hash))
+    print('pubkey_hash', pubkey_hash, type(pubkey_hash), hex(pubkey_hash))
     #
     addr = pubkey_hash_to_address(pubkey_hash, Testnet2Sec)
     print('address',addr)
     #
     # address -> pub key hash
     #  
-    pkh, net, algo  = address_to_pubkey_hash(addr, Testnet2Sec)
+    pkh  = address_to_pubkey_hash(addr, Testnet2Sec)
     print('pubkey_hash', pkh)
     #
     # pub key hash -> address
