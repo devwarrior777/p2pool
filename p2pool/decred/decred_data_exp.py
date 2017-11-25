@@ -8,7 +8,9 @@ import p2pool
 from p2pool.util import math, pack
 from p2pool.decred.blake import BLAKE
 
-
+def blake256(data):
+    return BLAKE(256).digest(data)
+    
 def hash256(data):
     return pack.IntType(256).unpack(BLAKE(256).digest(data))
 
@@ -418,90 +420,125 @@ def difficulty_to_target(difficulty):
     return min(int((0xffff0000 * 2**(256-64) + 1)/difficulty - 1 + 0.5), 2**256-1)
 
 
+
 if __name__=="__main__":
-    #     
-    # Test - Blake256
-    #     
-    d = b'\x00'
-    h = BLAKE(256).digest(d)
-    print("hash of '{0}' is \n'{1}' \nstr {2}\n".format(d.encode('hex'),h,h.encode('hex')))
-    # Expected: 0ce8d4ef4dd7cd8d62dfded9d4edb0a774ae6a41929a74da23109e8f11139c87
-    
-    d = b'\x00'*72
-    h = BLAKE(256).digest(d)
-    print("hash of '{0}' is \n'{1}' \nstr {2}\n".format(d.encode('hex'),h,h.encode('hex')))
-    # Expected: 0ce8d4ef4dd7cd8d62dfded9d4edb0a774ae6a41929a74da23109e8f11139c87
-   
-    l = long(0x00000000000000000000000000000000000000000000000000000000000)
-    h = hash256(l)
-    print("hash of {0} is {1} {2}\n".format(l,hex(h),type(h)))
-    
-    #     
-    # Test - Parse Transaction
-    #     
-    data = "01000000020e5551a794baacdc45c453d8ce3d511058dc6618977884f685bc3cc878bbb3bf0100000000ffffffffe14810a5123cdddc98e2a1040cd584ac2a172a2c2cda36d98a94e34bf12985ba0200000001ffffffff02c347dac00100000000001976a9145ed0b86ae903b337a58203b84c98aa004473d61e88ac7cb097570100000000001976a9140459aa94d72597122586c011c5e29d3a7a9db3e388ac0000000000000000021f74a71a01000000b1dc0200030000006a47304402201b12b4f88d172ea24b94ef71b68c25d83072239c37aa70205f56a8c83adeb21c0220151851dc0a2ed80f86bc96dab3c2d190a81296be8ca83dd8578db1ce56a405b7012102a3f6cf568ed663348118f7dfd412253b61a3e93d4eb6cf3ce9046b3c18e4e393cc27cbfd01000000b4db0200020000006b483045022100d194f05a7a2a5c54744cf305b5e3d6a925f4ed300c924eff135b8719bd0048c8022074da56a7d7035393fce62ccd238a972a3f332b15f588bed62156ea5082dc4d8a012102c074fe37ac06734bfd2b8aeedc23e38c0487418d0aa885af285b31ccebed9fec"
-    hash = "fa7003848826f8fec2041d05b26f90ff9447fa14eb8fde66079074b3a5005332"
-    packed_tx = data.decode('hex')
-    packed_hash = hash.decode('hex')
-    print(packed_hash.encode('hex'))
-    transaction = tx_type.unpack(packed_tx, ignore_trailing=False)
-    print(transaction)
-    for k in transaction.keys():
-        print(k, transaction[k])
-    # Test packed size
-    pkd_size = tx_type.packed_size(transaction)
-    print
-    print('packed size', pkd_size, type(pkd_size))
-    # Test re-pack
-    pkdtx = tx_type.pack(transaction)
-    assert pkdtx == packed_tx
-    
-    #     
-    # Test - Parse Block Header
-    #
-    block_header = "0500000068c69fa348fa573e026a019023e8dd68bfd1015d83e3787a6900000000000000a6007c15b73f3c7cdb213bf21507590c8b20ce35d01a87f2c4193659419ca4910da437a68c2ad4097dfd361f6a677004edf2b2443895e119d98286c4f873aef80100089e4f047cc705001400da9f00000cca001a90e814bf01000000dcdd02005b3400006c99125a06df158dc79d268ec36218fc00000000000000000000000000000000000000000000000005000000"
-    packed_header = block_header.decode('hex')
-    header_fields = block_header_type.unpack(packed_header, ignore_trailing=False)  
-    print(header_fields)
-    print("\nBlock Header:")
-    for k in header_fields.keys():
-        print(k, hex(header_fields[k]))
-    # Test packed size
-    pkd_size = block_header_type.packed_size(header_fields)
-    print
-    print('packed size', pkd_size, type(pkd_size))
-    # Test re-pack
-    pkdhdr = block_header_type.pack(header_fields)
-    assert pkdhdr == packed_header
-    print
-    
-    #
-    # bits -> floating integer
-    #
-    bits = header_fields.bits
-    print(bits,type(bits))
-    fib = FloatingInteger(bits)
-    print(fib,(type(fib)))
-    print
-    
-    #
-    # merkle trees
-    #
-    
-    mh = merkle_hash([
-        0x0e0c8ac0b57b7bff8461e3c9e251ee05b1d04ee5ef9714b6414ea4bff1939fb9L,
-        0x76634e947f49dfc6228c3e8a09cd3e9e15893439fc06df7df0fc6f08d659856cL,
-        0x12d2f0a8c4e4335884762f2df572dee613ec41fa1b64d3be813c25dd9ddd85a5L,
-        0x2b4b8e992ce95e4d206299f19d41596b3c5675d203767dd6604a9fb4049fb602L
-    ])
+    def _rev(hexb):
+        rev = []
+        ln = len(hexb)
+        if ln%2:
+            return ''
+        lastpos = ln -1
+        firstpos = 0
+        step = -2
+        for i in range(lastpos,firstpos,step):
+            rev.append(hexb[i-1])
+            rev.append(hexb[i])
+        return ''.join(rev)
+            
+    def dumptx(tx):
+        print '-----------------'
+        print 'TX'
+        print '-----------------'
+        for k in tx.keys():
+            v = tx[k]
+            if k == 'version':
+                print k,hex(v)
+            if k == 'sertype':
+                print k,hex(v)
+            elif k == 'expiry':
+                print k,hex(v)
+            elif k == 'lock_time':
+                print k,hex(v)
+            elif k == 'tx_ins':
+                print 'tx_ins'
+                for o in v:
+                    print'  outpoint'
+                    print'    index', hex(o.outpoint.index)
+                    print'    hash', hex(o.outpoint.hash)
+                    print'    tree', o.outpoint.tree
+                    print'  sequence', hex(o.sequence)
+            elif k == 'tx_outs':
+                print 'tx_outs'
+                for o in v:
+                    print'  version', hex(o.version)
+                    print'  value', o.value
+                    print'  script_pk', o.script_pk.encode('hex')
+        print '-----------------'
 
-    print(mh,hex(mh))
-    
-    
-    
-    
+    def dumpwtx(tx):
+        print '-----------------'
+        print 'WTX'
+        print '-----------------'
+        for k in tx.keys():
+            v = tx[k]
+            if k == 'wtx_ins':
+                print 'wtx_ins'
+                for o in v:
+                    print'  block_index', hex(o.block_index)
+                    print'  script_sig', o.script_sig.encode('hex')
+                    print'  block_height', o.block_height
+        print '-----------------'
 
-    assert mh == 0x2549a4ef697c4a5e067b752bc06a32e74e56e6eddc7a6cb3e299f072469d6b26L
+    #     
+    # Parse the 2 Regular Transactions from testnet2 block 100,000
+    #
     
+    #
+    # 0. Coinbase - 49a89e0e84bbb3e2671a9b990ea7f824028ac46b7df9fffbdfd1e16c603aa425
+    #
+    tx0_raw = "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff00ffffffff030b1b3e09000000000000144fa6cbd0dbe5ec407fe4c8ad374e667771fa0d4400000000000000000000266a24a0860100000000000000000000000000000000000000000000000000fa550bdded3592f50a8e79370000000000001976a9149d8e8bdc618035be32a14ab752af2e331f9abf3688ac00000000000000000150bdb2400000000000000000ffffffff0800002f646372642f"
+    packed_tx0 = tx0_raw.decode('hex')
+    tx0 = tx_type.unpack(packed_tx0, ignore_trailing=False)
+    dumptx(tx0)
+    dumpwtx(tx0)
+    
+    tx0_sertype1_raw = "01000100010000000000000000000000000000000000000000000000000000000000000000ffffffff00ffffffff030b1b3e09000000000000144fa6cbd0dbe5ec407fe4c8ad374e667771fa0d4400000000000000000000266a24a0860100000000000000000000000000000000000000000000000000fa550bdded3592f50a8e79370000000000001976a9149d8e8bdc618035be32a14ab752af2e331f9abf3688ac00000000000000000150bdb2400000000000000000ffffffff0800002f646372642f"
+    packed_tx0_sertype1 = tx0_sertype1_raw.decode('hex')
+    non_witness_tx0 = tx_type_1.unpack(packed_tx0_sertype1, ignore_trailing=True)
+    dumptx(non_witness_tx0)
+    dumpwtx(non_witness_tx0)
+    
+    non_witness_tx0_packed = tx_type_1.pack(non_witness_tx0)
+    h0 = hash256(non_witness_tx0_packed)
+    print 'Tx Hash', hex(h0)
+    assert h0 == 0x49a89e0e84bbb3e2671a9b990ea7f824028ac46b7df9fffbdfd1e16c603aa425L
+
+    b0 = blake256(non_witness_tx0_packed)
+    print b0.encode('hex')
+    
+    print '---'
+
+
+    #
+    # 1. b0c5d12a01b636ab044c3f709dbfb26fedaf3b07f0e4f4b0f91479b73388b871
+    #
+    tx1_raw = "010000000930072588364d4085b2facea8d7a33a54c91236af73c5bab99fb12292a69e4ec70500000000ffffffff466d95994b5268f175b80e17e129e747cd49a13be6ad2f6e2cdf22aa574352d20200000000ffffffff80480d01223f44545fb8226b14d91599a54d3ac2c3647f37af95528409835efe0200000001ffffffff804b9f56f55ce0026ca815fe1b6e2b78a25cde305097401dd762a0a4c1592e090200000001ffffffff809d67ad85582cb64f880aa1012e5279f05ee9ccec2168177000474d70d483b50200000001ffffffff81279ef649967b5a4a56bc0c036db40c8547b72660f3877d6635619fcef01e3e0200000001ffffffff81353ccadb539d37803d937130683c26ff6e88f6f62c38e55b8e3ef69c791a3c0200000001ffffffff8148ae90db48f90092d79998763605c9091635d99475c986c29cfe0a8562ce3a0200000000ffffffff81c695d5dfa3e06377065cb44378ce5fe1fff48b3c44fa730092339c19c6b8f80200000001ffffffff06977df9520100000000001976a91465a8be1de0e0af4b7d4429aa2b5032af9711c64388ac977df9520100000000001976a91465a8be1de0e0af4b7d4429aa2b5032af9711c64388ac977df9520100000000001976a91465a8be1de0e0af4b7d4429aa2b5032af9711c64388ac977df9520100000000001976a91465a8be1de0e0af4b7d4429aa2b5032af9711c64388ac977df9520100000000001976a91465a8be1de0e0af4b7d4429aa2b5032af9711c64388ac19a25d030100000000001976a91497a93b29fe5454b4080534b6d595a6121c18080188ac000000000000000009e405e06a000000009f860100010000006a473044022018fa18347aaf9534431111797f71771d337f4fde7870551a5a4bf76f7e64ba2f02201ba1db79983f07114b3f7227905928bc25550822c21b4385c4468b6c3bdf78c5012103ecdea47d34b6ce060fd23c70b3758f5fbcd5e18820d80d8cfa007817b99e107083cb78370000000090860100000000006b4830450221009b7107e3d2cdf46f2d55985026a501ab40f207c8537d0013dd5cf33de293575902207477c79de3b897b7b385349ba6434d89ee0e0c0c5c853b11e4844d50f1afaaf50121024d9134e6176f99dbe95b155f3638a55530e3776c2b6c8bd2234dbfbdbcae732a28efb93501000000d3850100030000006b483045022100855de5ba1b482e555d5380138fa314583b39af6032f32bd78c125afa1502bd490220382aaa933ce6151a257dae4081f4438b2cd5688c48e273f5e0f349e26807242b0121024d9134e6176f99dbe95b155f3638a55530e3776c2b6c8bd2234dbfbdbcae732aff4a2a1101000000a3850100040000006a47304402202caf9b32aa076cd39634094e8ec2f58087c47823b808dba1afde296d9fa390ce0220373eb2f2a2bacab5d00cef64b2d2f3c331ec632f611f070c0ef73dc6e127a7560121024d9134e6176f99dbe95b155f3638a55530e3776c2b6c8bd2234dbfbdbcae732aa6f733ff0000000098850100040000006a473044022077405f353442c6bc8c0e9c4e5dc3f90affec08555ffa8abee4017c1150d6c4d502204a589cebbe3ddda2c5ee2f17eddbd5776f92a5078ff5ce0969ec85a953d854870121024d9134e6176f99dbe95b155f3638a55530e3776c2b6c8bd2234dbfbdbcae732af27ecc500100000010860100040000006a473044022055e7630bf8d2b3036baf634201c0dd050fef7735d1b0b690e1f1161fad64e310022000cabc2c84af220c57f71fc407160d8d3de9ef0c9b6800ddaed79e323ac7b2f10121024d9134e6176f99dbe95b155f3638a55530e3776c2b6c8bd2234dbfbdbcae732a1d9c7a2b0100000045850100020000006a47304402203d7f1dbbc137be8aa6523489c95081981302ea9610829dc72850dc23be5de9e1022074b7ef769ec5df0d77c5c886241c7ca3df9df2bb5c7d918403d3e532329211fe0121024d9134e6176f99dbe95b155f3638a55530e3776c2b6c8bd2234dbfbdbcae732a9e4e5d2c00000000d4850100000000006a47304402204a3a38560480df5e7ffd0a14464ee34a06695e23754c2abbfd9a30b1f7d40227022059b6128ef5ececc42479d5084cc57f0e6eb36815f20faa9fc98e9f25278e728d0121024d9134e6176f99dbe95b155f3638a55530e3776c2b6c8bd2234dbfbdbcae732aff4a2a1101000000c3850100020000006b483045022100b178e715bc61c80a06e3b522e21d51af81598acf9b2f05dfaf88341288e2388d02204f7511749e6b4ab89b2c46f4e7057324396887df5b088da93b7918f93b634ef30121024d9134e6176f99dbe95b155f3638a55530e3776c2b6c8bd2234dbfbdbcae732a"
+    packed_tx1 = tx1_raw.decode('hex')
+    tx1 = tx_type.unpack(packed_tx1, ignore_trailing=False)
+    dumptx(tx1)
+    dumpwtx(tx1)
+    
+    tx1_sertype1_raw = "010001000930072588364d4085b2facea8d7a33a54c91236af73c5bab99fb12292a69e4ec70500000000ffffffff466d95994b5268f175b80e17e129e747cd49a13be6ad2f6e2cdf22aa574352d20200000000ffffffff80480d01223f44545fb8226b14d91599a54d3ac2c3647f37af95528409835efe0200000001ffffffff804b9f56f55ce0026ca815fe1b6e2b78a25cde305097401dd762a0a4c1592e090200000001ffffffff809d67ad85582cb64f880aa1012e5279f05ee9ccec2168177000474d70d483b50200000001ffffffff81279ef649967b5a4a56bc0c036db40c8547b72660f3877d6635619fcef01e3e0200000001ffffffff81353ccadb539d37803d937130683c26ff6e88f6f62c38e55b8e3ef69c791a3c0200000001ffffffff8148ae90db48f90092d79998763605c9091635d99475c986c29cfe0a8562ce3a0200000000ffffffff81c695d5dfa3e06377065cb44378ce5fe1fff48b3c44fa730092339c19c6b8f80200000001ffffffff06977df9520100000000001976a91465a8be1de0e0af4b7d4429aa2b5032af9711c64388ac977df9520100000000001976a91465a8be1de0e0af4b7d4429aa2b5032af9711c64388ac977df9520100000000001976a91465a8be1de0e0af4b7d4429aa2b5032af9711c64388ac977df9520100000000001976a91465a8be1de0e0af4b7d4429aa2b5032af9711c64388ac977df9520100000000001976a91465a8be1de0e0af4b7d4429aa2b5032af9711c64388ac19a25d030100000000001976a91497a93b29fe5454b4080534b6d595a6121c18080188ac000000000000000009e405e06a000000009f860100010000006a473044022018fa18347aaf9534431111797f71771d337f4fde7870551a5a4bf76f7e64ba2f02201ba1db79983f07114b3f7227905928bc25550822c21b4385c4468b6c3bdf78c5012103ecdea47d34b6ce060fd23c70b3758f5fbcd5e18820d80d8cfa007817b99e107083cb78370000000090860100000000006b4830450221009b7107e3d2cdf46f2d55985026a501ab40f207c8537d0013dd5cf33de293575902207477c79de3b897b7b385349ba6434d89ee0e0c0c5c853b11e4844d50f1afaaf50121024d9134e6176f99dbe95b155f3638a55530e3776c2b6c8bd2234dbfbdbcae732a28efb93501000000d3850100030000006b483045022100855de5ba1b482e555d5380138fa314583b39af6032f32bd78c125afa1502bd490220382aaa933ce6151a257dae4081f4438b2cd5688c48e273f5e0f349e26807242b0121024d9134e6176f99dbe95b155f3638a55530e3776c2b6c8bd2234dbfbdbcae732aff4a2a1101000000a3850100040000006a47304402202caf9b32aa076cd39634094e8ec2f58087c47823b808dba1afde296d9fa390ce0220373eb2f2a2bacab5d00cef64b2d2f3c331ec632f611f070c0ef73dc6e127a7560121024d9134e6176f99dbe95b155f3638a55530e3776c2b6c8bd2234dbfbdbcae732aa6f733ff0000000098850100040000006a473044022077405f353442c6bc8c0e9c4e5dc3f90affec08555ffa8abee4017c1150d6c4d502204a589cebbe3ddda2c5ee2f17eddbd5776f92a5078ff5ce0969ec85a953d854870121024d9134e6176f99dbe95b155f3638a55530e3776c2b6c8bd2234dbfbdbcae732af27ecc500100000010860100040000006a473044022055e7630bf8d2b3036baf634201c0dd050fef7735d1b0b690e1f1161fad64e310022000cabc2c84af220c57f71fc407160d8d3de9ef0c9b6800ddaed79e323ac7b2f10121024d9134e6176f99dbe95b155f3638a55530e3776c2b6c8bd2234dbfbdbcae732a1d9c7a2b0100000045850100020000006a47304402203d7f1dbbc137be8aa6523489c95081981302ea9610829dc72850dc23be5de9e1022074b7ef769ec5df0d77c5c886241c7ca3df9df2bb5c7d918403d3e532329211fe0121024d9134e6176f99dbe95b155f3638a55530e3776c2b6c8bd2234dbfbdbcae732a9e4e5d2c00000000d4850100000000006a47304402204a3a38560480df5e7ffd0a14464ee34a06695e23754c2abbfd9a30b1f7d40227022059b6128ef5ececc42479d5084cc57f0e6eb36815f20faa9fc98e9f25278e728d0121024d9134e6176f99dbe95b155f3638a55530e3776c2b6c8bd2234dbfbdbcae732aff4a2a1101000000c3850100020000006b483045022100b178e715bc61c80a06e3b522e21d51af81598acf9b2f05dfaf88341288e2388d02204f7511749e6b4ab89b2c46f4e7057324396887df5b088da93b7918f93b634ef30121024d9134e6176f99dbe95b155f3638a55530e3776c2b6c8bd2234dbfbdbcae732a"
+    packed_tx1_sertype1 = tx1_sertype1_raw.decode('hex')
+    non_witness_tx1 = tx_type_1.unpack(packed_tx1_sertype1, ignore_trailing=True)
+    dumptx(non_witness_tx1)
+    dumpwtx(non_witness_tx1)
+    
+    non_witness_tx1_packed = tx_type_1.pack(non_witness_tx1)
+    h1 = hash256(non_witness_tx1_packed)
+    print 'Tx Hash', hex(h1)
+    assert h1 == 0xb0c5d12a01b636ab044c3f709dbfb26fedaf3b07f0e4f4b0f91479b73388b871L
+
+    b1 = blake256(non_witness_tx1_packed)
+    print b1.encode('hex')
+    
+    print '---'
+    
+    
+    #
+    # witness only .. test
+    #
+    ps = non_witness_tx1._packed_size
+    print
     
     
