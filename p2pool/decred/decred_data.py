@@ -196,29 +196,36 @@ class SerializedTx(object):
     '''  
     https://docs.decred.org/advanced/transaction-details/
     
-    For mining we ignore everything on the wire except SerTypeFull - 0
+    This is a wrapper for 'tx_type' which is a struct that decodes prefiX and witness data
+    
+    For mining we ignore everything on the wire except SerTypeFull - 0 ... for now!
     '''
     def __init__(self):
         self.type_0 = tx_type_0
     
     def get_all(self, raw_tx_pkd):
+        '''
+        new code can use this to get a full decode of the whole wire tx message
+        '''
         version_sertype = tx_type_version_sertype.unpack(raw_tx_pkd, ignore_trailing=True)
         if version_sertype.sertype != 0:
             raise SerializedTxException('Only SerTypeFull wire transactions supported')
-        full_tx = self.type_0.unpack(raw_tx_pkd, ignore_trailing=False)                # prefix + witness
-        prefix = tx_type_1.unpack(raw_tx_pkd, ignore_trailing=True)                    # prefix
+        full_tx = self.type_0.unpack(raw_tx_pkd, ignore_trailing=False)                 # prefix + witness
+        
+        prefix = tx_type_1.unpack(raw_tx_pkd, ignore_trailing=True)                     # prefix
         prefix_len = tx_type_1.packed_size(prefix)
-        witness = tx_type_2.unpack(raw_tx_pkd[:prefix_len], ignore_trailing=True)      # witness
+        
+        wit_pkd = raw_tx_pkd[prefix_len:]                                               # witness
+        witness = tx_type_2.unpack(wit_pkd, ignore_trailing=False)
         #
-        prefix_ser_1 = _copy(prefix)
+        # Must set to sertype 1 before hashing: msgtx.go
+        #
+        prefix_ser_1 = _copy(prefix)                                                     # H(prefix)
         prefix_ser_1.sertype = 1
         prefix_ser_1_pkd = tx_type_1.pack(prefix_ser_1)
         tx_hash = blake256(prefix_ser_1_pkd)
         #
         return full_tx, prefix, witness, tx_hash
-        
-        
-        
           
     def unpack(self, raw_tx_pkd, ignore_trailing=False):
         '''
@@ -226,6 +233,9 @@ class SerializedTx(object):
         
         @param raw_tx_:               packed str containing raw tx data 'bytes'
         @raise SerializedTxException: if sertype is not 0
+
+        old code can comtinue to use this to get a full decode of the whole wire 
+        tx message by calling ts_type.update(<packed tx sertype 0>)
         '''
         version_sertype = tx_type_version_sertype.unpack(raw_tx_pkd, ignore_trailing=True)
         if version_sertype.sertype != 0:
@@ -249,7 +259,9 @@ class SerializedTx(object):
 
     def write(self, f, item):
         return self.type_0.write(f, item)
-    
+#
+# wrapper    
+#
 tx_type = SerializedTx()
 
 ###############################################################################

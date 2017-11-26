@@ -46,7 +46,9 @@ class Type(object):
         
         assert data2 is data
         
-        if pos != len(data) and not ignore_trailing:
+        ld = len(data)
+        if pos != ld and not ignore_trailing:
+#         if pos != len(data) and not ignore_trailing:
             raise LateEnd()
         
         return obj
