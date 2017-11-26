@@ -11,7 +11,7 @@ from twisted.python import log
 
 import p2pool
 from p2pool.util import datachunker, variable
-from p2pool.decred.blake import BLAKE
+from p2pool.decred.decred_data import blake256
 
 class TooLong(Exception):
     pass
@@ -25,7 +25,7 @@ class Protocol(protocol.Protocol):
         self.ignore_trailing_payload = ignore_trailing_payload
         
     def getChecksumForPayload(self, payload):
-        hashed_payload = BLAKE(256).digest(payload)
+        hashed_payload = blake256(payload)
         checksum = hashed_payload[:4]
         return checksum
     

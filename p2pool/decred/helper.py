@@ -104,9 +104,12 @@ def getwork(dcrd, use_getblocktemplate=True):
     transaction_records = []
     transaction_hashes = []
     for packed_tx in packed_transactions:
-        txrec = decred_data.tx_type.unpack(packed_tx['ptx'])
+#         txrec = decred_data.tx_type.unpack(packed_tx['ptx'])
+#         transaction_records.append(txrec)
+#         transaction_hashes.append(packed_tx['ptx'])
+        txrec, _, _, txhash = decred_data.tx_type.get_all(packed_tx['ptx'])
         transaction_records.append(txrec)
-        transaction_hashes.append(packed_tx['ptx'])
+        transaction_hashes.append(txhash)
     
     wd = dict(
         version=work['version'],
