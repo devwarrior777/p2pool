@@ -5,7 +5,9 @@ from twisted.internet import defer
 
 import p2pool
 from p2pool.decred import decred_data
+from p2pool.util import pack                    # debug
 from p2pool.util import deferral, jsonrpc
+
 
 @deferral.retry('Error while checking Decred connection:', 1)
 @defer.inlineCallbacks
@@ -49,10 +51,14 @@ def checkwallet(dcrdwallet, net, tries=3, waittime=1):
             time.sleep(waittime)
     defer.returnValue(False)
 
-@deferral.retry('Error getting work from dcrd:', 3)
+#gf:beta getblocktemplate
+# @deferral.retry('Error getting work from dcrd:', 3)
+@deferral.retry('Error getting work from dcrd:', 13)
+#<-gf:
 @defer.inlineCallbacks
 def getwork(dcrd, use_getblocktemplate=True):
     def go():
+        print 'Getting blocktemplate ...'
         if not use_getblocktemplate:
             raise Exception("getblocktemplate only")
         return dcrd.rpc_getblocktemplate(dict(mode='template'))
@@ -68,7 +74,6 @@ def getwork(dcrd, use_getblocktemplate=True):
     # work
     #
     work['currtime'] = time.time()
-
 
     #
     # Block Header
@@ -90,12 +95,12 @@ def getwork(dcrd, use_getblocktemplate=True):
     for tx in work['transactions']:
         ptx = tx['data'].decode('hex')
         phash = tx['hash'].decode('hex')
-        packed_txs.append({'ptx': ptx, 'phash': phash, 'tree': 0}) 
+        packed_txs.append({'ptx': ptx, 'phash': phash})
     packed_stxxs = []
     for stxx in work['stransactions']:
         ptx = stxx['data'].decode('hex')
         phash = stxx['hash'].decode('hex')
-        packed_stxxs.append({'ptx': ptx, 'phash': phash, 'tree': 1}) 
+        packed_stxxs.append({'ptx': ptx, 'phash': phash}) 
     
     packed_transactions = []
     packed_transactions.extend(packed_txs)
@@ -105,11 +110,15 @@ def getwork(dcrd, use_getblocktemplate=True):
     transaction_hashes = []
     for packed_tx in packed_transactions:
 #         txrec = decred_data.tx_type.unpack(packed_tx['ptx'])
-#         transaction_records.append(txrec)
-#         transaction_hashes.append(packed_tx['ptx'])
-        txrec, _, _, txhash = decred_data.tx_type.get_all(packed_tx['ptx'])
-        transaction_records.append(txrec)
-        transaction_hashes.append(txhash)
+#         transaction_records.append(txrec)                                        # DIFFERENT HASHES
+#         transaction_hashes.append(pack.IntType(256).unpack(packed_tx['phash']))  # sent in on getblocktemplate
+        alldata = decred_data.tx_type.get_all(packed_tx['ptx'])
+        transaction_records.append(alldata['tx_full'])
+        transaction_hashes.append(alldata['prefix_hash'])
+        print(packed_tx['phash'].encode('hex'))
+        print(hex(alldata['tx_full_hash']))
+        print(hex(alldata['prefix_hash']))
+        print
     
     wd = dict(
         version=work['version'],

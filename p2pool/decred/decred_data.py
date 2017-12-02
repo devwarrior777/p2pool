@@ -8,6 +8,7 @@ import p2pool
 from p2pool.util import math, pack
 from p2pool.decred.blake import BLAKE
 from copy import copy as _copy
+from p2pool.util.pack import IntType
 
 def blake256(data):
     return BLAKE(256).digest(data)
@@ -196,7 +197,7 @@ class SerializedTx(object):
     '''  
     https://docs.decred.org/advanced/transaction-details/
     
-    This is a wrapper for 'tx_type' which is a struct that decodes prefiX and witness data
+    This is a wrapper for 'tx_type' which is a struct that decodes prefix and witness data
     
     For mining we ignore everything on the wire except SerTypeFull - 0 ... for now!
     '''
@@ -210,22 +211,73 @@ class SerializedTx(object):
         version_sertype = tx_type_version_sertype.unpack(raw_tx_pkd, ignore_trailing=True)
         if version_sertype.sertype != 0:
             raise SerializedTxException('Only SerTypeFull wire transactions supported')
-        full_tx = self.type_0.unpack(raw_tx_pkd, ignore_trailing=False)                 # prefix + witness
-        
-        prefix = tx_type_1.unpack(raw_tx_pkd, ignore_trailing=True)                     # prefix
+        tx_full = self.type_0.unpack(raw_tx_pkd, ignore_trailing=False)             # prefix + witness
+        #
+        # Prefix
+        #
+        prefix = tx_type_1.unpack(raw_tx_pkd, ignore_trailing=True)
         prefix_len = tx_type_1.packed_size(prefix)
-        
-        wit_pkd = raw_tx_pkd[prefix_len:]                                               # witness
-        witness = tx_type_2.unpack(wit_pkd, ignore_trailing=False)
         #
-        # Must set to sertype 1 before hashing: msgtx.go
+        # Prefix hash: Must set to sertype 1 before hashing: msgtx.go
         #
-        prefix_ser_1 = _copy(prefix)                                                     # H(prefix)
+        prefix_ser_1 = _copy(prefix)
         prefix_ser_1.sertype = 1
         prefix_ser_1_pkd = tx_type_1.pack(prefix_ser_1)
-        tx_hash = blake256(prefix_ser_1_pkd)
+        prefix_hash = hash256(prefix_ser_1_pkd)                                     # H1(prefix) 
         #
-        return full_tx, prefix, witness, tx_hash
+        # Witness
+        #
+        wit_pkd = raw_tx_pkd[prefix_len:]
+        witness = tx_type_2.unpack(wit_pkd, ignore_trailing=False)
+        #
+        # Witness hash: Must prepend version sertype (uint32) and set to sertype 2 before hashing: msgtx.go
+        #
+        ver_ser_2 = _copy(version_sertype)
+        ver_ser_2.sertype = 2
+        ver_ser_2_pkd = tx_type_version_sertype.pack(ver_ser_2)
+        witness_ser_2_pkd = ver_ser_2_pkd + wit_pkd
+        witness_hash = hash256(witness_ser_2_pkd)                                   # H2(witness)
+        #
+        # FullTx hash: Hash ( H1(prefix) concat H2(witness) )
+        #
+        prefix_hash_pkd = IntType(256).pack(prefix_hash)
+        witness_hash_pkd = IntType(256).pack(witness_hash)
+        concat_pkd = prefix_hash_pkd + witness_hash_pkd
+        tx_full_hash = hash256(concat_pkd)
+        
+        return dict(
+            tx_full=tx_full,
+            tx_full_hash=tx_full_hash,
+            prefix=prefix,
+            prefix_hash=prefix_hash,
+            witness=witness,
+            witness_hash=witness_hash
+            )
+
+
+#     def get_all(self, raw_tx_pkd):
+#         '''
+#         new code can use this to get a full decode of the whole wire tx message
+#         '''
+#         version_sertype = tx_type_version_sertype.unpack(raw_tx_pkd, ignore_trailing=True)
+#         if version_sertype.sertype != 0:
+#             raise SerializedTxException('Only SerTypeFull wire transactions supported')
+#         full_tx = self.type_0.unpack(raw_tx_pkd, ignore_trailing=False)                 # prefix + witness
+#         
+#         prefix = tx_type_1.unpack(raw_tx_pkd, ignore_trailing=True)                     # prefix
+#         prefix_len = tx_type_1.packed_size(prefix)
+#         
+#         wit_pkd = raw_tx_pkd[prefix_len:]                                               # witness
+#         witness = tx_type_2.unpack(wit_pkd, ignore_trailing=False)
+#         #
+#         # Must set to sertype 1 before hashing: msgtx.go
+#         #
+#         prefix_ser_1 = _copy(prefix)                                                     # H(prefix)
+#         prefix_ser_1.sertype = 1
+#         prefix_ser_1_pkd = tx_type_1.pack(prefix_ser_1)
+#         tx_hash = hash256(prefix_ser_1_pkd)
+#         #
+#         return full_tx, prefix, witness, tx_hash
           
     def unpack(self, raw_tx_pkd, ignore_trailing=False):
         '''
@@ -519,36 +571,15 @@ if __name__=="__main__":
     tx0_raw = "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff00ffffffff030b1b3e09000000000000144fa6cbd0dbe5ec407fe4c8ad374e667771fa0d4400000000000000000000266a24a0860100000000000000000000000000000000000000000000000000fa550bdded3592f50a8e79370000000000001976a9149d8e8bdc618035be32a14ab752af2e331f9abf3688ac00000000000000000150bdb2400000000000000000ffffffff0800002f646372642f"
     packed_tx0 = tx0_raw.decode('hex')
     tx0 = tx_type.unpack(packed_tx0)
-    print tx0
     
-    f,p,w, txh = tx_type.get_all(packed_tx0)
-    print f
-    print p
-    print w
-    print txh
-    tx_hash = pack.IntType(256).unpack(txh)
-    print hex(tx_hash)
-    print _rev(txh.encode('hex'))
+    alldata = tx_type.get_all(packed_tx0)
+    print alldata['tx_full']
+    print alldata['prefix']
+    print hex(alldata['prefix_hash'])
+    print alldata['witness']
+    print hex(alldata['witness_hash'])
+    assert alldata['prefix_hash'] == 0x49a89e0e84bbb3e2671a9b990ea7f824028ac46b7df9fffbdfd1e16c603aa425L
     print
-#     tx0 = tx_type.unpack(packed_tx0, ignore_trailing=False)
-#     dumptx(tx0)
-#     dumpwtx(tx0)
-#     
-#     tx0_sertype1_raw = "01000100010000000000000000000000000000000000000000000000000000000000000000ffffffff00ffffffff030b1b3e09000000000000144fa6cbd0dbe5ec407fe4c8ad374e667771fa0d4400000000000000000000266a24a0860100000000000000000000000000000000000000000000000000fa550bdded3592f50a8e79370000000000001976a9149d8e8bdc618035be32a14ab752af2e331f9abf3688ac00000000000000000150bdb2400000000000000000ffffffff0800002f646372642f"
-#     packed_tx0_sertype1 = tx0_sertype1_raw.decode('hex')
-#     non_witness_tx0 = tx_type_1.unpack(packed_tx0_sertype1, ignore_trailing=True)
-#     dumptx(non_witness_tx0)
-#     dumpwtx(non_witness_tx0)
-#     
-#     non_witness_tx0_packed = tx_type_1.pack(non_witness_tx0)
-#     h0 = hash256(non_witness_tx0_packed)
-#     print 'Tx Hash', hex(h0)
-#     assert h0 == 0x49a89e0e84bbb3e2671a9b990ea7f824028ac46b7df9fffbdfd1e16c603aa425L
-# 
-#     b0 = blake256(non_witness_tx0_packed)
-#     print b0.encode('hex')
-#     
-#     print '---'
 
 
     #
@@ -558,6 +589,7 @@ if __name__=="__main__":
     packed_tx1 = tx1_raw.decode('hex')
     tx1 = tx_type.unpack(packed_tx1)
     print tx1
+    
 #     tx1 = tx_type.unpack(packed_tx1, ignore_trailing=False)
 #     dumptx(tx1)
 #     dumpwtx(tx1)

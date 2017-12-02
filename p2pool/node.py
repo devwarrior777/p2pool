@@ -178,7 +178,7 @@ class Node(object):
         stop_signal = variable.Event()
         self.stop = stop_signal.happened
         
-        # BITCOIND WORK
+        # DCRD WORK
         
         self.dcrd_work = variable.Variable((yield helper.getwork(self.dcrd)))
         @defer.inlineCallbacks
