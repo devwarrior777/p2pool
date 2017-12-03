@@ -376,15 +376,7 @@ merkle_record_type = pack.ComposedType([
     ('right', pack.IntType(256)),
 ])
 
-# def merkle_hash(hashes): # TODO: Blake256
-#     if not hashes:
-#         return 0
-#     hash_list = list(hashes)
-#     while len(hash_list) > 1:
-#         hash_list = [hash256(merkle_record_type.pack(dict(left=left, right=right)))
-#             for left, right in zip(hash_list[::2], hash_list[1::2] + [hash_list[::2][-1]])]
-#     return hash_list[0]
-def merkle_hash(hashes): # TODO: Blake256
+def merkle_hash(hashes):
     if not hashes:
         return 0
     hash_list = list(hashes)
@@ -480,6 +472,9 @@ def difficulty_to_target(difficulty):
 
 
 if __name__=="__main__":
+    #
+    # Test Utils
+    #
     def _rev(hexb):
         '''
         In:     Hex encoded 'byte' str  '414243' or '4142433'
@@ -543,9 +538,9 @@ if __name__=="__main__":
         print '-----------------'
 
     #     
-    # Test - Parse Block Header
+    # Test - Parse Block Header - from testnet2 block 100,000
     #
-    block_header = "0500000068c69fa348fa573e026a019023e8dd68bfd1015d83e3787a6900000000000000a6007c15b73f3c7cdb213bf21507590c8b20ce35d01a87f2c4193659419ca4910da437a68c2ad4097dfd361f6a677004edf2b2443895e119d98286c4f873aef80100089e4f047cc705001400da9f00000cca001a90e814bf01000000dcdd02005b3400006c99125a06df158dc79d268ec36218fc00000000000000000000000000000000000000000000000005000000"
+    block_header = "05000000d8261d81d5e0cfc886de2edde0c08cd89281c96a13408a25a9f18a0400000000d9c36121bf9a904100ef5c21eb7e07f46ce24e7f8ea6697dbc235d1b899215e8bab09bce3618e97d56ce0902920b91c1436ce8ce53b50bec41f7744cfc737c9b0100593215bc8ae805000500d7110000c80a071c6708f95201000000a0860100f71400007d738059f9000afef8a133008bd9b60000000000000000000000000000000000000000000000000005000000"
     packed_header = block_header.decode('hex')
     header_fields = block_header_type.unpack(packed_header, ignore_trailing=False)  
     print(header_fields)
@@ -573,13 +568,11 @@ if __name__=="__main__":
     tx0 = tx_type.unpack(packed_tx0)
     
     alldata = tx_type.get_all(packed_tx0)
-    print alldata['tx_full']
+    #print alldata['tx_full']
     tx_full_hash_0 = alldata['tx_full_hash']
-    print hex(alldata['tx_full_hash'])
-    print alldata['prefix']
-    print hex(alldata['prefix_hash'])
-    print alldata['witness']
-    print hex(alldata['witness_hash'])
+    print hex(alldata['tx_full_hash']), 'tx_full_hash'
+    print hex(alldata['prefix_hash']), 'prefix_hash'
+    print hex(alldata['witness_hash']), 'witness_hash'
     prefix_hash_0 = alldata['prefix_hash']
     assert prefix_hash_0 == 0x49a89e0e84bbb3e2671a9b990ea7f824028ac46b7df9fffbdfd1e16c603aa425L
     print
@@ -593,19 +586,135 @@ if __name__=="__main__":
     tx1 = tx_type.unpack(packed_tx1)
     
     alldata = tx_type.get_all(packed_tx1)
+    #print alldata['tx_full']
     tx_full_hash_1 = alldata['tx_full_hash']
+    print hex(alldata['tx_full_hash']), 'tx_full_hash'
+    print hex(alldata['prefix_hash']), 'prefix_hash'
+    print hex(alldata['witness_hash']), 'witness_hash'
     prefix_hash_1 = alldata['prefix_hash']
     assert prefix_hash_1 == 0xb0c5d12a01b636ab044c3f709dbfb26fedaf3b07f0e4f4b0f91479b73388b871L
     print
 
-    tx_full_hash_0_pkd = IntType(256).pack(tx_full_hash_0)
-    tx_full_hash_1_pkd = IntType(256).pack(tx_full_hash_1)
-    
-    concat_pkd = tx_full_hash_0_pkd + tx_full_hash_1_pkd
-    concat_hash = hash256(concat_pkd)
-    print hex(concat_hash)                          # merkle root of the 2 full hashes
-    
-    assert concat_hash == 0xe81592891b5d23bc7d69a68e7f4ee26cf4077eeb215cef0041909abf2161c3d9L
 
+    #
+    # check merkleroot: 0xe81592891b5d23bc7d69a68e7f4ee26cf4077eeb215cef0041909abf2161c3d9L
+    #
+    hashes = [tx_full_hash_0, tx_full_hash_1]
+    
+    merkle_root = merkle_hash(hashes)
+    assert merkle_root == 0xe81592891b5d23bc7d69a68e7f4ee26cf4077eeb215cef0041909abf2161c3d9L
+
+    #     
+    # Parse the 10 Stake Transactions from testnet2 block 100,000
+    #
+    stx0_raw = "01000000020000000000000000000000000000000000000000000000000000000000000000ffffffff00ffffffffeabf91567776cbe7c7596ee6b7e93ac0aee276c5198807c0bf00af497e66f9c20000000001ffffffff0400000000000000000000266a24d8261d81d5e0cfc886de2edde0c08cd89281c96a13408a25a9f18a04000000009f86010000000000000000000000086a0601000500000089796a000000000000001abb76a9147f686bc0e548bbb92f487db6da070e43a341172888ac75d1bf100100000000001abb76a9149d8e8bdc618035be32a14ab752af2e331f9abf3688ac000000000000000002d3a98b050000000000000000ffffffff0200002ca19e0b01000000c17f01000b0000009047304402201f9879fb85cb5dc9d5570842c7766242f36e690b6c88925f3307b422e4d03428022058c3bfed6728e9b6cc89964976d58618420f51a553a8a28d7439e714590c41840147512102fe82f22f2e5bc1be0b67d85afef87329fc1c4512f30a47ce459c78bd7502ba9821022cf2f038dbb85f0a35fed9ac147e58d9ee85a80f8827085f51ef4129a02d458652ae"
+    stx1_raw = "01000000020000000000000000000000000000000000000000000000000000000000000000ffffffff00ffffffff3f609f6dcec5ab8f021e84af763b5530e7586b4617b77e9b8042a2217cc5a2480000000001ffffffff0300000000000000000000266a24d8261d81d5e0cfc886de2edde0c08cd89281c96a13408a25a9f18a04000000009f86010000000000000000000000086a060100050000001d9c7a2b0100000000001abb76a914a7e94ff7a271bf40718be28a4f622fa678d18f6388ac000000000000000002d3a98b050000000000000000ffffffff0200004af2ee250100000011850100090000006b483045022100b48ac3ce05a9ac5553b2f3dad21009e5bfc204205ced9b6b98f3580f7ab06ee102205c50af58deadcc8bc5f42f8b7031a5b861b52bb71abbcbfbb4ab3e8d1548a1670121036c7b1826c3da739ca07390fe673fdb9ea8430938cb18f331e457a1c444cf5f25"
+    stx2_raw = "01000000020000000000000000000000000000000000000000000000000000000000000000ffffffff00ffffffffe13df4d1404cb78ccf2d23665389279551d5b8ac7f463b16fa1fd1f0505ce2080000000001ffffffff0300000000000000000000266a24d8261d81d5e0cfc886de2edde0c08cd89281c96a13408a25a9f18a04000000009f86010000000000000000000000086a060100050000001d9c7a2b0100000000001abb76a914a7e94ff7a271bf40718be28a4f622fa678d18f6388ac000000000000000002d3a98b050000000000000000ffffffff0200004af2ee250100000003850100060000006a4730440220548fd54ff98bd3344b275ebd59917ff91821c80a1ec9e16c31a2cb43c576146b02202bd75cc42a12fe8a5be748a542212eb0d8260c72eb79cac142883d9137830f9f012102196c3175e462b4e4f5ed10319a011960845235668f466b919c106e83731f6715"
+    stx3_raw = "01000000020000000000000000000000000000000000000000000000000000000000000000ffffffff00ffffffff1b6f4256f7d1da14519a237dfd8d043dce5199b04365a543d43f3358d958da980000000001ffffffff0300000000000000000000266a24d8261d81d5e0cfc886de2edde0c08cd89281c96a13408a25a9f18a04000000009f86010000000000000000000000086a06010005000000f27ecc500100000000001abb76a914a7e94ff7a271bf40718be28a4f622fa678d18f6388ac000000000000000002d3a98b050000000000000000ffffffff0200001fd5404b0100000056810100080000006b483045022100915c25fcac29f4d1c587da7a26b39daaa85b4db7ceb13cd3e3712ffa0a996d4c0220268e3496edc52b27968b63b04d4a1e6664b03cd31805e59cafe555384080d7230121036ef530ea582588c151a3b684fe1ab291a46f8deadbd69a4db30192c15f046481"
+    stx4_raw = "01000000020000000000000000000000000000000000000000000000000000000000000000ffffffff00ffffffff9ef2a8e86b2c764423df242efee96d728bd872f5cb8492d4b87cc00f085f61820000000001ffffffff0300000000000000000000266a24d8261d81d5e0cfc886de2edde0c08cd89281c96a13408a25a9f18a04000000009f86010000000000000000000000086a060100050000001d9c7a2b0100000000001abb76a914a7e94ff7a271bf40718be28a4f622fa678d18f6388ac000000000000000002d3a98b050000000000000000ffffffff0200004af2ee2501000000df840100130000006a47304402206b755156d9aebc12b7ff7a80e26c979ebc68a36da0a9b0d0436aa3b75968466f02204697d52c2b13a9e1a5ff8d4f798a620c3a80752ae57afad0230a93404fea780e012102004dccc58350e0058e78c440c69a1531d0296775ce39c91655ab643cd8cd9f4a"
+    stx5_raw = "010000000130072588364d4085b2facea8d7a33a54c91236af73c5bab99fb12292a69e4ec70400000000ffffffff036708f9520100000000001aba76a91438d4eea12c6701e59c755429078d1fd5f6d98bf888ac00000000000000000000206a1ea7e94ff7a271bf40718be28a4f622fa678d18f63977df952010000000058000000000000000000001abd76a914000000000000000000000000000000000000000088ac00000000b086010001977df952010000009f860100010000006a47304402207a7b62a37794fbf347311e7d3c816de528bc57754bc73b1c6841da6983cc2eb502207cf8e9d4e200d58406cc4c387ad534047e2f4a93f5de0c2d2c7a36cbdeb0f4f0012103553b24e54b1382947b5afa84115b10c30eebe4144e14fa33f58082f28dcb0420"
+    stx6_raw = "010000000130072588364d4085b2facea8d7a33a54c91236af73c5bab99fb12292a69e4ec70100000000ffffffff036708f9520100000000001aba76a91438d4eea12c6701e59c755429078d1fd5f6d98bf888ac00000000000000000000206a1ea7e94ff7a271bf40718be28a4f622fa678d18f63977df952010000000058000000000000000000001abd76a914000000000000000000000000000000000000000088ac00000000b086010001977df952010000009f860100010000006a47304402206d2be8fdf5692d03e576a777e81a82b3d78cc1811d3d4a1316df91b3ca83d9d20220749cea01d56ee88eae20da1dd868b5c35fb05011eb1f28b0646a10c372aa0630012103553b24e54b1382947b5afa84115b10c30eebe4144e14fa33f58082f28dcb0420"
+    stx7_raw = "010000000130072588364d4085b2facea8d7a33a54c91236af73c5bab99fb12292a69e4ec70000000000ffffffff036708f9520100000000001aba76a91438d4eea12c6701e59c755429078d1fd5f6d98bf888ac00000000000000000000206a1ea7e94ff7a271bf40718be28a4f622fa678d18f63977df952010000000058000000000000000000001abd76a914000000000000000000000000000000000000000088ac00000000b086010001977df952010000009f860100010000006a4730440220060568490637a100a045182bc6b16c16dc9cf06ae22ba411a6fdcf41ddd171c102206287538bd579aa42b93b8cef8a34b6f0c1ae9395fd5e66168346bdfa7e80ab0f012103553b24e54b1382947b5afa84115b10c30eebe4144e14fa33f58082f28dcb0420"
+    stx8_raw = "010000000130072588364d4085b2facea8d7a33a54c91236af73c5bab99fb12292a69e4ec70200000000ffffffff036708f9520100000000001aba76a91438d4eea12c6701e59c755429078d1fd5f6d98bf888ac00000000000000000000206a1ea7e94ff7a271bf40718be28a4f622fa678d18f63977df952010000000058000000000000000000001abd76a914000000000000000000000000000000000000000088ac00000000b086010001977df952010000009f860100010000006a47304402207f50f973f38cb2525d982b03900e6f0af25a2d9314de474df32d653837936efc02203f9db5c069596a77d07f18fc04cc25f03d234dbf577e84d6f29955d33373c9ea012103553b24e54b1382947b5afa84115b10c30eebe4144e14fa33f58082f28dcb0420"
+    stx9_raw = "010000000130072588364d4085b2facea8d7a33a54c91236af73c5bab99fb12292a69e4ec70300000000ffffffff036708f9520100000000001aba76a91438d4eea12c6701e59c755429078d1fd5f6d98bf888ac00000000000000000000206a1ea7e94ff7a271bf40718be28a4f622fa678d18f63977df952010000000058000000000000000000001abd76a914000000000000000000000000000000000000000088ac00000000b086010001977df952010000009f860100010000006b483045022100c094d1ecc64be6fae4dd33d483c34fdab0ae071a010457bc2fce340a6466721d02201a30d2fafb4664bd276503d2466bc8534a866ce9cd0aed659b2f620d849b8023012103553b24e54b1382947b5afa84115b10c30eebe4144e14fa33f58082f28dcb0420"
+
+    packed_stx0 = stx0_raw.decode('hex')
+    stx0 = tx_type.unpack(packed_stx0)
+    #
+    alldata = tx_type.get_all(packed_stx0)
+    stx_full_hash_0 = alldata['tx_full_hash']
+    prefix_hash_0 = alldata['prefix_hash']
+    assert prefix_hash_0 == 0x2f013d5dc9089ac37c003a332041ea0b5c2ec27303deee475fec773673244ba3L
+    print
+    
+    packed_stx1 = stx1_raw.decode('hex')
+    stx1 = tx_type.unpack(packed_stx1)
+    #
+    alldata = tx_type.get_all(packed_stx1)
+    stx_full_hash_1 = alldata['tx_full_hash']
+    prefix_hash_1 = alldata['prefix_hash']
+    assert prefix_hash_1 == 0x40b2ab4642fd4f3f3419e3897c9fa82d882dc0e750e34c0fff20cde7b42fbef8L
+    print
+    
+    packed_stx2 = stx2_raw.decode('hex')
+    stx2 = tx_type.unpack(packed_stx2)
+    #
+    alldata = tx_type.get_all(packed_stx2)
+    stx_full_hash_2 = alldata['tx_full_hash']
+    prefix_hash_2 = alldata['prefix_hash']
+    assert prefix_hash_2 == 0x2cdc94f5e7bd8596ec172b1fe3624df3715a2bc62058a4af0fca7be762371379L
+    print
+    
+    packed_stx3 = stx3_raw.decode('hex')
+    stx3 = tx_type.unpack(packed_stx3)
+    #
+    alldata = tx_type.get_all(packed_stx3)
+    stx_full_hash_3 = alldata['tx_full_hash']
+    prefix_hash_3 = alldata['prefix_hash']
+    assert prefix_hash_3 == 0xfcdf85ddd9a230c5e8542fe0f3dd642e5b777876838425afb61654582ccef607L
+    print
+    
+    packed_stx4 = stx4_raw.decode('hex')
+    stx4 = tx_type.unpack(packed_stx4)
+    #
+    alldata = tx_type.get_all(packed_stx4)
+    stx_full_hash_4 = alldata['tx_full_hash']
+    prefix_hash_4 = alldata['prefix_hash']
+    assert prefix_hash_4 == 0x8ea9b4713f5c9590d0c5ff91a5cf31c2d498d0bd951cf1020d191331a7c11ccdL
+    print
+    
+    packed_stx5 = stx5_raw.decode('hex')
+    stx5 = tx_type.unpack(packed_stx5)
+    #
+    alldata = tx_type.get_all(packed_stx5)
+    stx_full_hash_5 = alldata['tx_full_hash']
+    prefix_hash_5 = alldata['prefix_hash']
+    assert prefix_hash_5 == 0xf68a14d528a34f51f7f2bb5253e5bd2999eb0f8317a0fccc314a615dbd25481cL
+    print
+    
+    packed_stx6 = stx6_raw.decode('hex')
+    stx6 = tx_type.unpack(packed_stx6)
+    #
+    alldata = tx_type.get_all(packed_stx6)
+    stx_full_hash_6 = alldata['tx_full_hash']
+    prefix_hash_6 = alldata['prefix_hash']
+    assert prefix_hash_6 == 0xd721d203ccaac6e3b58dcc0d90db4e53478c2603a10f19ab81e7367dba44a4a3L
+    print
+    
+    packed_stx7 = stx7_raw.decode('hex')
+    stx7 = tx_type.unpack(packed_stx7)
+    #
+    alldata = tx_type.get_all(packed_stx7)
+    stx_full_hash_7 = alldata['tx_full_hash']
+    prefix_hash_7 = alldata['prefix_hash']
+    assert prefix_hash_7 == 0x5d90393b5e5db763d87ce31cca614d75cf12eebeab04dfaae5084767df0ebe5fL
+    print
+    
+    packed_stx8 = stx8_raw.decode('hex')
+    stx8 = tx_type.unpack(packed_stx8)
+    #
+    alldata = tx_type.get_all(packed_stx8)
+    stx_full_hash_8 = alldata['tx_full_hash']
+    prefix_hash_8 = alldata['prefix_hash']
+    assert prefix_hash_8 == 0x77da688b6d1a388aec30ec4436537ac3138231febe1074bfd5acd8fb260373c6L
+    print
+    
+    packed_stx9 = stx9_raw.decode('hex')
+    stx9 = tx_type.unpack(packed_stx9)
+    #
+    alldata = tx_type.get_all(packed_stx9)
+    stx_full_hash_9 = alldata['tx_full_hash']
+    prefix_hash_9 = alldata['prefix_hash']
+    assert prefix_hash_9 == 0x50be003b7cc52fc7697541ef98c93cd1eae7cab30deeae63715540dfd4d8e563L
+    print
     
     
+    #
+    # check stakeroot: 0x9b7c73fc4c74f741ec0bb553cee86c43c1910b920209ce567de91836ce9bb0baL
+    #
+    
+    stx_hashes = [stx_full_hash_0, stx_full_hash_1, stx_full_hash_2, stx_full_hash_3, stx_full_hash_4, stx_full_hash_5, stx_full_hash_6, stx_full_hash_7, stx_full_hash_8, stx_full_hash_9 ]
+    
+    stake_root = merkle_hash(stx_hashes)
+    assert stake_root == 0x9b7c73fc4c74f741ec0bb553cee86c43c1910b920209ce567de91836ce9bb0baL
+    print
