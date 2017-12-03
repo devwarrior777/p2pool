@@ -91,34 +91,44 @@ def getwork(dcrd, use_getblocktemplate=True):
     #
     # Transactions
     #
-    packed_txs = []
-    for tx in work['transactions']:
-        ptx = tx['data'].decode('hex')
-        phash = tx['hash'].decode('hex')
-        packed_txs.append({'ptx': ptx, 'phash': phash})
-    packed_stxxs = []
-    for stxx in work['stransactions']:
-        ptx = stxx['data'].decode('hex')
-        phash = stxx['hash'].decode('hex')
-        packed_stxxs.append({'ptx': ptx, 'phash': phash}) 
+    txs = []
+    for regtx in work['transactions']:
+#         ptx = tx['data'].decode('hex')
+#         hash = pack.IntType(256, endianness='big').unpack(tx['hash'].decode('hex'))
+#         packed_txs.append({'tx': ptx, 'hash': hash})
+        tx = regtx['data']
+        hash = regtx['hash']
+        txs.append({'tx': tx, 'hash': hash})
+    stxs = []
+    for staketx in work['stransactions']:
+        stx = staketx['data']
+        hash = staketx['hash']
+        stxs.append({'tx': stx, 'hash': hash}) 
     
-    packed_transactions = []
-    packed_transactions.extend(packed_txs)
-    packed_transactions.extend(packed_stxxs)
+    all_transactions = []
+    all_transactions.extend(txs)
+    all_transactions.extend(stxs)
 
     transaction_records = []
     transaction_hashes = []
-    for packed_tx in packed_transactions:
-#         txrec = decred_data.tx_type.unpack(packed_tx['ptx'])
-#         transaction_records.append(txrec)                                        # DIFFERENT HASHES
-#         transaction_hashes.append(pack.IntType(256).unpack(packed_tx['phash']))  # sent in on getblocktemplate
-        alldata = decred_data.tx_type.get_all(packed_tx['ptx'])
-        transaction_records.append(alldata['tx_full'])
-        transaction_hashes.append(alldata['prefix_hash'])
-        print(packed_tx['phash'].encode('hex'))
-        print(hex(alldata['tx_full_hash']))
-        print(hex(alldata['prefix_hash']))
-        print
+    for t in all_transactions:
+        ptx = t['tx'].decode('hex')
+        ptx_hash = t['hash'].decode('hex')
+        tx_full = decred_data.tx_type.unpack(ptx)
+        tx_full_hash = pack.IntType(256, endianness='big').unpack(ptx_hash)         # sent in on getblocktemplate
+        transaction_records.append(tx_full)
+        transaction_hashes.append(tx_full_hash)
+        #
+        # 
+        #
+        if p2pool.DEBUG:
+            alldata = decred_data.tx_type.get_all(ptx)
+            print(hex(tx_full_hash), 'tx_full_hash:')
+            print(hex(alldata['tx_full_hash']), 'alldata.tx_full_hash')
+            print(hex(alldata['prefix_hash']), 'alldata.prefix_hash')
+            print(hex(alldata['witness_hash']), 'alldata.witness_hash')
+            assert tx_full_hash == alldata['tx_full_hash']
+            print
     
     wd = dict(
         version=work['version'],
