@@ -206,17 +206,25 @@ class SerializedTx(object):
     
     def get_all(self, raw_tx_pkd):
         '''
+        Deserialize a raw transaction into all component parts
+        
+        @param raw_tx_pkd:            packed str containing raw tx data 'bytes'
+        @raise SerializedTxException: if sertype is not 0
+        
         new code can use this to get a full decode of the whole wire tx message
         '''
         version_sertype = tx_type_version_sertype.unpack(raw_tx_pkd, ignore_trailing=True)
         if version_sertype.sertype != 0:
             raise SerializedTxException('Only SerTypeFull wire transactions supported')
+        
         tx_full = self.type_0.unpack(raw_tx_pkd, ignore_trailing=False)             # prefix + witness
+        
         #
         # Prefix
         #
         prefix = tx_type_1.unpack(raw_tx_pkd, ignore_trailing=True)
         prefix_len = tx_type_1.packed_size(prefix)
+        
         #
         # Prefix hash: Must set to sertype 1 before hashing: msgtx.go
         #
@@ -224,11 +232,13 @@ class SerializedTx(object):
         prefix_ser_1.sertype = 1
         prefix_ser_1_pkd = tx_type_1.pack(prefix_ser_1)
         prefix_hash = hash256(prefix_ser_1_pkd)                                     # H1(prefix) 
+        
         #
         # Witness
         #
         wit_pkd = raw_tx_pkd[prefix_len:]
         witness = tx_type_2.unpack(wit_pkd, ignore_trailing=False)
+        
         #
         # Witness hash: Must prepend version sertype (uint32) and set to sertype 2 before hashing: msgtx.go
         #
@@ -237,6 +247,7 @@ class SerializedTx(object):
         ver_ser_2_pkd = tx_type_version_sertype.pack(ver_ser_2)
         witness_ser_2_pkd = ver_ser_2_pkd + wit_pkd
         witness_hash = hash256(witness_ser_2_pkd)                                   # H2(witness)
+        
         #
         # FullTx hash: Hash ( H1(prefix) concat H2(witness) )
         #
@@ -255,43 +266,21 @@ class SerializedTx(object):
             )
 
 
-#     def get_all(self, raw_tx_pkd):
-#         '''
-#         new code can use this to get a full decode of the whole wire tx message
-#         '''
-#         version_sertype = tx_type_version_sertype.unpack(raw_tx_pkd, ignore_trailing=True)
-#         if version_sertype.sertype != 0:
-#             raise SerializedTxException('Only SerTypeFull wire transactions supported')
-#         full_tx = self.type_0.unpack(raw_tx_pkd, ignore_trailing=False)                 # prefix + witness
-#         
-#         prefix = tx_type_1.unpack(raw_tx_pkd, ignore_trailing=True)                     # prefix
-#         prefix_len = tx_type_1.packed_size(prefix)
-#         
-#         wit_pkd = raw_tx_pkd[prefix_len:]                                               # witness
-#         witness = tx_type_2.unpack(wit_pkd, ignore_trailing=False)
-#         #
-#         # Must set to sertype 1 before hashing: msgtx.go
-#         #
-#         prefix_ser_1 = _copy(prefix)                                                     # H(prefix)
-#         prefix_ser_1.sertype = 1
-#         prefix_ser_1_pkd = tx_type_1.pack(prefix_ser_1)
-#         tx_hash = hash256(prefix_ser_1_pkd)
-#         #
-#         return full_tx, prefix, witness, tx_hash
-          
     def unpack(self, raw_tx_pkd, ignore_trailing=False):
         '''
         Deserialize a raw transaction into a tx_type_0 Record struct
         
-        @param raw_tx_:               packed str containing raw tx data 'bytes'
+        @param raw_tx_pkd:            packed str containing raw tx data 'bytes'
+        @param ignore_trailing        ignore extra bytes after unpacked into records complete
         @raise SerializedTxException: if sertype is not 0
 
         old code can comtinue to use this to get a full decode of the whole wire 
-        tx message by calling ts_type.update(<packed tx sertype 0>)
+        tx message by calling tx_type.update(<packed tx sertype 0>)
         '''
         version_sertype = tx_type_version_sertype.unpack(raw_tx_pkd, ignore_trailing=True)
         if version_sertype.sertype != 0:
             raise SerializedTxException('Only SerTypeFull wire transactions supported')
+        
         return self.type_0.unpack(raw_tx_pkd, ignore_trailing=False)    # prefix + witness
         
     def pack(self, obj):
@@ -484,7 +473,8 @@ if __name__=="__main__":
         rev = []
         ln = len(hexb)
         if ln%2:
-            return ''
+            hexb += '0'
+            ln += 1
         lastpos = ln -1
         firstpos = 0
         step = -2
@@ -536,6 +526,11 @@ if __name__=="__main__":
                     print'  script_sig', o.script_sig.encode('hex')
                     print'  block_height', o.block_height
         print '-----------------'
+
+
+    ##############################
+    # Use Block 100,000 Testnet2 #
+    ##############################
 
     #     
     # Test - Parse Block Header - from testnet2 block 100,000
