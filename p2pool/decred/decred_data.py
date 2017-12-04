@@ -255,7 +255,7 @@ class SerializedTx(object):
         witness_hash_pkd = IntType(256).pack(witness_hash)
         concat_pkd = prefix_hash_pkd + witness_hash_pkd
         tx_full_hash = hash256(concat_pkd)
-        
+        #
         return dict(
             tx_full=tx_full,
             tx_full_hash=tx_full_hash,
@@ -264,6 +264,11 @@ class SerializedTx(object):
             witness=witness,
             witness_hash=witness_hash
             )
+        
+    def get_tx_full_hash(self, raw_tx_pkd):
+        ''' Sometimes we may only want the full_tx_hash '''
+        alldata = self.get_all(raw_tx_pkd)
+        return alldata['tx_full_hash']
 
 
     def unpack(self, raw_tx_pkd, ignore_trailing=False):
@@ -281,7 +286,7 @@ class SerializedTx(object):
         if version_sertype.sertype != 0:
             raise SerializedTxException('Only SerTypeFull wire transactions supported')
         
-        return self.type_0.unpack(raw_tx_pkd, ignore_trailing=False)    # prefix + witness
+        return self.type_0.unpack(raw_tx_pkd, ignore_trailing=ignore_trailing)    # prefix + witness
         
     def pack(self, obj):
         '''
