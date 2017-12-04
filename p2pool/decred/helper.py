@@ -119,7 +119,7 @@ def getwork(dcrd, use_getblocktemplate=True):
         transaction_records.append(tx_full)
         transaction_hashes.append(tx_full_hash)
         #
-        # 
+        # TODO: Find out if we need the prefix hashes at a later point in the logic flow
         #
         if p2pool.DEBUG:
             alldata = decred_data.tx_type.get_all(ptx)
@@ -135,7 +135,7 @@ def getwork(dcrd, use_getblocktemplate=True):
         previous_block=int(work['previousblockhash'], 16),
         transactions=transaction_records,
         transaction_hashes=transaction_hashes,
-        transaction_fees=[x.get('fee', None) if isinstance(x, dict) else None for x in work['transactions']],
+        transaction_fees=[x.get('fee', None) if isinstance(x, dict) else None for x in work['transactions']], # TODO: FixMe for trans + strans
         subsidy=work['coinbasevalue'],
         time=work['currtime'],
         bits=decred_data.FloatingInteger(work['bits']),

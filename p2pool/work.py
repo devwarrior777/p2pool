@@ -10,7 +10,6 @@ import time
 from twisted.internet import defer
 from twisted.python import log
 
-#import p2pool.decred.getwork as decred_getwork
 import p2pool.decred.decred_data as decred_data
 import p2pool.decred.decred_addr as decred_addr
 from p2pool.decred import helper, script, worker_interface
@@ -22,7 +21,7 @@ print_throttle = 0.0
 class WorkerBridge(worker_interface.WorkerBridge):
     COINBASE_NONCE_LENGTH = 8
     
-    def __init__(self, node, my_pubkey_hash, donation_percentage, merged_urls, worker_fee, args, pubkeys, dcrd):
+    def __init__(self, node, my_pubkey_hash, donation_percentage, worker_fee, args, pubkeys, dcrd):
         worker_interface.WorkerBridge.__init__(self)
         self.recent_shares_ts_work = []
         
@@ -71,29 +70,7 @@ class WorkerBridge(worker_interface.WorkerBridge):
             if share.hash in self.my_doa_share_hashes and self.node.tracker.is_child_of(share.hash, self.node.best_share_var.value):
                 self.removed_doa_unstales_var.set(self.removed_doa_unstales_var.value + 1)
         
-        # MERGED WORK
-        
-        self.merged_work = variable.Variable({})
-        
-        @defer.inlineCallbacks
-        def set_merged_work(merged_url, merged_userpass):
-            merged_proxy = jsonrpc.HTTPProxy(merged_url, dict(Authorization='Basic ' + base64.b64encode(merged_userpass)))
-            while self.running:
-                auxblock = yield deferral.retry('Error while calling merged getauxblock on %s:' % (merged_url,), 30)(merged_proxy.rpc_getauxblock)()
-                target = auxblock['target'] if 'target' in auxblock else auxblock['_target']
-                self.merged_work.set(math.merge_dicts(self.merged_work.value, {auxblock['chainid']: dict(
-                    hash=int(auxblock['hash'], 16),
-                    target='p2pool' if target == 'p2pool' else pack.IntType(256).unpack(target.decode('hex')),
-                    merged_proxy=merged_proxy,
-                )}))
-                yield deferral.sleep(1)
-        for merged_url, merged_userpass in merged_urls:
-            set_merged_work(merged_url, merged_userpass)
-        
-        @self.merged_work.changed.watch
-        def _(new_merged_work):
-            print 'Got new merged mining work!'
-        
+       
         # COMBINE WORK
         
         self.current_work = variable.Variable(None)
@@ -128,7 +105,6 @@ class WorkerBridge(worker_interface.WorkerBridge):
             # trigger LP if version/previous_block/bits changed or transactions changed from nothing
             if any(before[x] != after[x] for x in ['version', 'previous_block', 'bits']) or (not before['transactions'] and after['transactions']):
                 self.new_work_event.happened()
-        self.merged_work.changed.watch(lambda _: self.new_work_event.happened())
         self.node.best_share_var.changed.watch(lambda _: self.new_work_event.happened())
     
     def stop(self):
@@ -246,18 +222,8 @@ class WorkerBridge(worker_interface.WorkerBridge):
         if self.node.best_share_var.value is None and self.node.net.PERSIST:
             raise jsonrpc.Error_for_code(-12345)(u'p2pool is downloading shares')
         
-        if self.merged_work.value:
-            tree, size = decred_data.make_auxpow_tree(self.merged_work.value)
-            mm_hashes = [self.merged_work.value.get(tree.get(i), dict(hash=0))['hash'] for i in xrange(size)]
-            mm_data = '\xfa\xbemm' + decred_data.aux_pow_coinbase_type.pack(dict(
-                merkle_root=decred_data.merkle_hash(mm_hashes),
-                size=size,
-                nonce=0,
-            ))
-            mm_later = [(aux_work, mm_hashes.index(aux_work['hash']), mm_hashes) for chain_id, aux_work in self.merged_work.value.iteritems()]
-        else:
-            mm_data = ''
-            mm_later = []
+        mm_data = ''
+        mm_later = []
         
         tx_hashes = [decred_data.hash256(decred_data.tx_type.pack(tx)) for tx in self.current_work.value['transactions']]
         tx_map = dict(zip(tx_hashes, self.current_work.value['transactions']))
@@ -406,33 +372,6 @@ class WorkerBridge(worker_interface.WorkerBridge):
             assert header['bits'] == ba['bits']
             
             on_time = self.new_work_event.times == lp_count
-            
-            for aux_work, index, hashes in mm_later:
-                try:
-                    if pow_hash <= aux_work['target'] or p2pool.DEBUG:
-                        df = deferral.retry('Error submitting merged block: (will retry)', 10, 10)(aux_work['merged_proxy'].rpc_getauxblock)(
-                            pack.IntType(256, 'big').pack(aux_work['hash']).encode('hex'),
-                            decred_data.aux_pow_type.pack(dict(
-                                merkle_tx=dict(
-                                    tx=new_gentx,
-                                    block_hash=header_hash,
-                                    merkle_link=merkle_link,
-                                ),
-                                merkle_link=decred_data.calculate_merkle_link(hashes, index),
-                                parent_block_header=header,
-                            )).encode('hex'),
-                        )
-                        @df.addCallback
-                        def _(result, aux_work=aux_work):
-                            if result != (pow_hash <= aux_work['target']):
-                                print >>sys.stderr, 'Merged block submittal result: %s Expected: %s' % (result, pow_hash <= aux_work['target'])
-                            else:
-                                print 'Merged block submittal result: %s' % (result,)
-                        @df.addErrback
-                        def _(err):
-                            log.err(err, 'Error submitting merged block:')
-                except:
-                    log.err(None, 'Error while processing merged mining POW:')
             
             if pow_hash <= share_info['bits'].target and header_hash not in received_header_hashes:
                 last_txout_nonce = pack.IntType(8*self.COINBASE_NONCE_LENGTH).unpack(coinbase_nonce)

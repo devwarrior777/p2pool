@@ -409,33 +409,6 @@ def check_merkle_link(tip_hash, link):
         dict(left=c, right=h)
     )), enumerate(link['branch']), tip_hash)
 
-# merged mining
-
-aux_pow_type = pack.ComposedType([
-    ('merkle_tx', merkle_tx_type),
-    ('merkle_link', merkle_link_type),
-    ('parent_block_header', block_header_type),
-])
-
-aux_pow_coinbase_type = pack.ComposedType([
-    ('merkle_root', pack.IntType(256, 'big')),
-    ('size', pack.IntType(32)),
-    ('nonce', pack.IntType(32)),
-])
-
-def make_auxpow_tree(chain_ids):
-    for size in (2**i for i in xrange(31)):
-        if size < len(chain_ids):
-            continue
-        res = {}
-        for chain_id in chain_ids:
-            pos = (1103515245 * chain_id + 1103515245 * 12345 + 12345) % size
-            if pos in res:
-                break
-            res[pos] = chain_id
-        else:
-            return res, size
-    raise AssertionError()
 
 # targets
 
@@ -462,7 +435,7 @@ def difficulty_to_target(difficulty):
 
 if __name__=="__main__":
     #
-    # Test Utils
+    # Test Utils - TODO: move into their own file
     #
     def _rev(hexb):
         '''
@@ -708,7 +681,9 @@ if __name__=="__main__":
     # check stakeroot: 0x9b7c73fc4c74f741ec0bb553cee86c43c1910b920209ce567de91836ce9bb0baL
     #
     
-    stx_hashes = [stx_full_hash_0, stx_full_hash_1, stx_full_hash_2, stx_full_hash_3, stx_full_hash_4, stx_full_hash_5, stx_full_hash_6, stx_full_hash_7, stx_full_hash_8, stx_full_hash_9 ]
+    stx_hashes = [stx_full_hash_0, stx_full_hash_1, stx_full_hash_2, stx_full_hash_3, 
+                  stx_full_hash_4, stx_full_hash_5, stx_full_hash_6, stx_full_hash_7, 
+                  stx_full_hash_8, stx_full_hash_9 ]
     
     stake_root = merkle_hash(stx_hashes)
     assert stake_root == 0x9b7c73fc4c74f741ec0bb553cee86c43c1910b920209ce567de91836ce9bb0baL
