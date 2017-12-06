@@ -33,14 +33,10 @@ Rebuild dcrd with the rpcserver.go in this repo above - this enables `getblockte
 Start DCRD with:
 ----------------
 dcrd --debuglevel=debug  --testnet --miningaddr=TscoEFWZjuWEqVPNGGzM9X3Pa8iXHk6jgYg
-     or
-dcrd --debuglevel=debug            --miningaddr=<mainnet payout addr you control>
 
 Start p2pool with:
 ------------------
 run_p2pool --debug  --testnet --address=TscoEFWZjuWEqVPNGGzM9X3Pa8iXHk6jgYg
-    or
-run_p2pool --debug            --address=<mainnet payout addr you control>
 
 =====================================================
 
