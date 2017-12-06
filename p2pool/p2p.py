@@ -419,7 +419,10 @@ class Protocol(p2protocol.Protocol):
         new_known_txs = dict(self.node.known_txs_var.value)
         warned = False
         for tx in txs:
-            tx_hash = decred_data.hash256(decred_data.tx_type.pack(tx))
+            #gf:->
+            #tx_hash = decred_data.hash256(decred_data.tx_type.pack(tx))
+            tx_hash = decred_data.tx_type.get_tx_full_hash(decred_data.tx_type.pack(tx))
+            #<-gf
             if tx_hash in self.remembered_txs:
                 print >>sys.stderr, 'Peer referenced transaction twice, disconnecting'
                 self.disconnect()

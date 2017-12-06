@@ -28,8 +28,12 @@ class P2PNode(p2p.Node):
         all_new_txs = {}
         for share, new_txs in shares:
             if new_txs is not None:
-                all_new_txs.update((decred_data.hash256(decred_data.tx_type.pack(new_tx)), new_tx) for new_tx in new_txs)
-            
+                #gf:->
+                
+                #all_new_txs.update((decred_data.hash256(decred_data.tx_type.pack(new_tx)), new_tx) for new_tx in new_txs)
+                all_new_txs.update((decred_data.tx_type.get_tx_full_hash(decred_data.tx_type.pack(new_tx)), new_tx) for new_tx in new_txs)
+                #<-gf
+                
             if share.hash in self.node.tracker.items:
                 #print 'Got duplicate share, ignoring. Hash: %s' % (p2pool_data.format_hash(share.hash),)
                 continue
@@ -246,7 +250,10 @@ class Node(object):
         @self.factory.new_tx.watch
         def _(tx):
             new_known_txs = dict(self.known_txs_var.value)
-            new_known_txs[decred_data.hash256(decred_data.tx_type.pack(tx))] = tx
+            #gf:->
+            #new_known_txs[decred_data.hash256(decred_data.tx_type.pack(tx))] = tx
+            new_known_txs[decred_data.tx_type.get_tx_full_hash(decred_data.tx_type.pack(tx))] = tx
+            #<-gf
             self.known_txs_var.set(new_known_txs)
         # forward transactions seen to dcrd
         @self.known_txs_var.transitioned.watch

@@ -103,7 +103,7 @@ def main(args, net, datadir_path, worker_endpoint):
             factory = yield connect_p2p()
         
         # connect to dcrd over JSON-RPC and do initial getmemorypool
-        url = '%s://%s:%i/' % ('https' if args.dcrd_rpc_ssl else 'http', args.dcrd_address, args.dcrd_rpc_port)
+        url = '%s://%s:%i/' % ('http' if args.dcrd_no_rpc_ssl else 'https', args.dcrd_address, args.dcrd_rpc_port)
         print '''Testing dcrd RPC connection to '%s' with username '%s'...''' % (url, args.dcrd_rpc_username)
         dcrd = jsonrpc.HTTPProxy(url, dict(Authorization='Basic ' + base64.b64encode(args.dcrd_rpc_username + ':' + args.dcrd_rpc_password)), timeout=30)
         yield helper.check(dcrd, net)
@@ -137,7 +137,7 @@ def main(args, net, datadir_path, worker_endpoint):
             #
             # wallet separate
             # 9111/19111
-            walleturl = '%s://%s:%i/' % ('https' if args.dcrd_rpc_ssl else 'http', args.dcrd_address, args.dcrd_rpc_wallet_port)
+            walleturl = '%s://%s:%i/' % ('http' if args.dcrd_no_rpc_ssl else 'https', args.dcrd_address, args.dcrd_rpc_wallet_port)
             print '''Testing dcrdwallet RPC connection to '%s' with username '%s'...''' % (walleturl, args.dcrd_rpc_username)
             dcrwallet = jsonrpc.HTTPProxy(walleturl, dict(Authorization='Basic ' + base64.b64encode(args.dcrd_rpc_username + ':' + args.dcrd_rpc_password)), timeout=30)
             wallet_online = yield helper.checkwallet(dcrwallet, net)
@@ -323,49 +323,49 @@ def main(args, net, datadir_path, worker_endpoint):
             signal.siginterrupt(signal.SIGALRM, False)
             deferral.RobustLoopingCall(signal.alarm, 30).start(1)
         
-        if args.irc_announce:
-            from twisted.words.protocols import irc
-            class IRCClient(irc.IRCClient):
-                nickname = 'p2pool%02i' % (random.randrange(100),)
-                channel = net.ANNOUNCE_CHANNEL
-                def lineReceived(self, line):
-                    if p2pool.DEBUG:
-                        print repr(line)
-                    irc.IRCClient.lineReceived(self, line)
-                def signedOn(self):
-                    self.in_channel = False
-                    irc.IRCClient.signedOn(self)
-                    self.factory.resetDelay()
-                    self.join(self.channel)
-                    @defer.inlineCallbacks
-                    def new_share(share):
-                        if not self.in_channel:
-                            return
-                        if share.pow_hash <= share.header['bits'].target and abs(share.timestamp - time.time()) < 10*60:
-                            yield deferral.sleep(random.expovariate(1/60))
-                            message = '\x02%s BLOCK FOUND by %s! %s%064x' % (net.NAME.upper(), decred_addr.script2_to_address(share.new_script, net.PARENT), net.PARENT.BLOCK_EXPLORER_URL_PREFIX, share.header_hash)
-                            if all('%x' % (share.header_hash,) not in old_message for old_message in self.recent_messages):
-                                self.say(self.channel, message)
-                                self._remember_message(message)
-                    self.watch_id = node.tracker.verified.added.watch(new_share)
-                    self.recent_messages = []
-                def joined(self, channel):
-                    self.in_channel = True
-                def left(self, channel):
-                    self.in_channel = False
-                def _remember_message(self, message):
-                    self.recent_messages.append(message)
-                    while len(self.recent_messages) > 100:
-                        self.recent_messages.pop(0)
-                def privmsg(self, user, channel, message):
-                    if channel == self.channel:
-                        self._remember_message(message)
-                def connectionLost(self, reason):
-                    node.tracker.verified.added.unwatch(self.watch_id)
-                    print 'IRC connection lost:', reason.getErrorMessage()
-            class IRCClientFactory(protocol.ReconnectingClientFactory):
-                protocol = IRCClient
-            reactor.connectTCP("irc.freenode.net", 6667, IRCClientFactory(), bindAddress=(worker_endpoint[0], 0))
+#         if args.irc_announce:
+#             from twisted.words.protocols import irc
+#             class IRCClient(irc.IRCClient):
+#                 nickname = 'p2pool%02i' % (random.randrange(100),)
+#                 channel = net.ANNOUNCE_CHANNEL
+#                 def lineReceived(self, line):
+#                     if p2pool.DEBUG:
+#                         print repr(line)
+#                     irc.IRCClient.lineReceived(self, line)
+#                 def signedOn(self):
+#                     self.in_channel = False
+#                     irc.IRCClient.signedOn(self)
+#                     self.factory.resetDelay()
+#                     self.join(self.channel)
+#                     @defer.inlineCallbacks
+#                     def new_share(share):
+#                         if not self.in_channel:
+#                             return
+#                         if share.pow_hash <= share.header['bits'].target and abs(share.timestamp - time.time()) < 10*60:
+#                             yield deferral.sleep(random.expovariate(1/60))
+#                             message = '\x02%s BLOCK FOUND by %s! %s%064x' % (net.NAME.upper(), decred_addr.script2_to_address(share.new_script, net.PARENT), net.PARENT.BLOCK_EXPLORER_URL_PREFIX, share.header_hash)
+#                             if all('%x' % (share.header_hash,) not in old_message for old_message in self.recent_messages):
+#                                 self.say(self.channel, message)
+#                                 self._remember_message(message)
+#                     self.watch_id = node.tracker.verified.added.watch(new_share)
+#                     self.recent_messages = []
+#                 def joined(self, channel):
+#                     self.in_channel = True
+#                 def left(self, channel):
+#                     self.in_channel = False
+#                 def _remember_message(self, message):
+#                     self.recent_messages.append(message)
+#                     while len(self.recent_messages) > 100:
+#                         self.recent_messages.pop(0)
+#                 def privmsg(self, user, channel, message):
+#                     if channel == self.channel:
+#                         self._remember_message(message)
+#                 def connectionLost(self, reason):
+#                     node.tracker.verified.added.unwatch(self.watch_id)
+#                     print 'IRC connection lost:', reason.getErrorMessage()
+#             class IRCClientFactory(protocol.ReconnectingClientFactory):
+#                 protocol = IRCClient
+#             reactor.connectTCP("irc.freenode.net", 6667, IRCClientFactory(), bindAddress=(worker_endpoint[0], 0))
         
         @defer.inlineCallbacks
         def status_thread():
@@ -446,9 +446,6 @@ def run():
     
     parser = fixargparse.FixedArgumentParser(description='p2pool (version %s)' % (p2pool.__version__,), fromfile_prefix_chars='@')
     parser.add_argument('--version', action='version', version=p2pool.__version__)
-    parser.add_argument('--net',
-        help='use specified network (default: decred)',
-        action='store', choices=sorted(realnets), default='decred', dest='net_name')
     parser.add_argument('--testnet',
         help='''use the network's testnet''',
         action='store_const', const=True, default=False, dest='testnet')
@@ -458,9 +455,6 @@ def run():
     parser.add_argument('-a', '--address',
         help='generate payouts to this address (default: <address requested from dcrwallet> which is not a good idea?)',
         type=str, action='store', default=None, dest='address')
-    parser.add_argument('-i', '--numaddresses',
-        help='number of decred auto-generated addresses to maintain for getwork dynamic address allocation',
-        type=int, action='store', default=2, dest='numaddresses')
     parser.add_argument('-t', '--timeaddresses',
         help='seconds between acquisition of new address and removal of single old (default: 2 days or 172800s)',
         type=int, action='store', default=172800, dest='timeaddresses')
@@ -476,13 +470,9 @@ def run():
     parser.add_argument('--iocp',
         help='use Windows IOCP API in order to avoid errors due to large number of sockets being open',
         action='store_true', default=False, dest='iocp')
-    parser.add_argument('--irc-announce',
-        help='announce any blocks found on irc://irc.freenode.net/#p2pool',
-        action='store_true', default=False, dest='irc_announce')
     parser.add_argument('--no-bugreport',
         help='disable submitting caught exceptions to the author',
         action='store_true', default=False, dest='no_bugreport')
-    
     p2pool_group = parser.add_argument_group('p2pool interface')
     p2pool_group.add_argument('--p2pool-port', metavar='PORT',
         help='use port PORT to listen for connections (forward this port from your router!) (default: %s)' % ', '.join('%s:%i' % (name, net.P2P_PORT) for name, net in sorted(realnets.items())),
@@ -527,9 +517,9 @@ def run():
     dcrd_group.add_argument('--dcrd-rpc-wallet-port', metavar='DCRD_RPC_WALLET_PORT',
         help='''connect to JSON-RPC wallet interface at this port (default: %s <read from decred.conf if password not provided>)''' % ', '.join('%s:%i' % (name, net.PARENT.RPC_WALLET_PORT) for name, net in sorted(realnets.items())),
         type=int, action='store', default=None, dest='dcrd_rpc_wallet_port')
-    dcrd_group.add_argument('--dcrd-rpc-ssl',
-        help='connect to JSON-RPC interface using SSL',
-        action='store_true', default=False, dest='dcrd_rpc_ssl')
+    dcrd_group.add_argument('--dcrd-no-rpc-ssl',
+        help='connect to JSON-RPC interface using SSL',                 # default to using SSL unless stated
+        action='store_true', default=False, dest='dcrd_no_rpc_ssl')
     dcrd_group.add_argument('--dcrd-p2p-port', metavar='DCRD_P2P_PORT',
         help='''connect to P2P interface at this port (default: %s <read from decred.conf if password not provided>)''' % ', '.join('%s:%i' % (name, net.PARENT.P2P_PORT) for name, net in sorted(realnets.items())),
         type=int, action='store', default=None, dest='dcrd_p2p_port')
@@ -544,6 +534,14 @@ def run():
         defer.setDebugging(True)
     else:
         p2pool.DEBUG = False
+    
+    
+    #
+    # fixed
+    #
+    args.irc_announce = False
+    args.net_name = 'decred'
+    args.numaddresses = 0
     
     net_name = args.net_name + ('_testnet' if args.testnet else '')
     net = networks.nets[net_name]
@@ -579,8 +577,8 @@ def run():
         ]:
             if getattr(args, var_name) is None and conf_name in contents:
                 setattr(args, var_name, var_type(contents[conf_name]))
-        if 'rpcssl' in contents and contents['rpcssl'] != '0':
-            args.dcrd_rpc_ssl = True
+#         if 'rpcssl' in contents and contents['rpcssl'] != '0':
+#             args.dcrd_rpc_ssl = True
         if args.dcrd_rpc_password is None:
             parser.error('''Configuration file didn't contain an rpcpassword= or a rpcpass= line! Add one!''')
     

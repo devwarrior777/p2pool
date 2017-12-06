@@ -197,7 +197,7 @@ class NewShare(object):
             abswork=((previous_share.abswork if previous_share is not None else 0) + decred_data.target_to_average_attempts(bits.target)) % 2**128,
         )
         
-        gentx = dict(
+        gentx = dict(   # TODO: FIXME!
             version=1,
             tx_ins=[dict(
                 previous_output=None,
@@ -327,7 +327,10 @@ class NewShare(object):
         assert other_tx_hashes2 == other_tx_hashes
         if share_info != self.share_info:
             raise ValueError('share_info invalid')
-        if decred_data.hash256(decred_data.tx_type.pack(gentx)) != self.gentx_hash:
+        #gf:->
+        #if decred_data.hash256(decred_data.tx_type.pack(gentx)) != self.gentx_hash:
+        if decred_data.tx_type.get_tx_full_hash(decred_data.tx_type.pack(gentx)) != self.gentx_hash:
+        #<-gf
             raise ValueError('''gentx doesn't match hash_link''')
         
         if decred_data.calculate_merkle_link([None] + other_tx_hashes, 0) != self.merkle_link:
@@ -517,7 +520,7 @@ class Share(object):
             abswork=((previous_share.abswork if previous_share is not None else 0) + decred_data.target_to_average_attempts(bits.target)) % 2**128,
         )
         
-        gentx = dict(
+        gentx = dict(     # TODO: FIXME!
             version=1,
             tx_ins=[dict(
                 previous_output=None,
@@ -647,7 +650,10 @@ class Share(object):
         assert other_tx_hashes2 == other_tx_hashes
         if share_info != self.share_info:
             raise ValueError('share_info invalid')
-        if decred_data.hash256(decred_data.tx_type.pack(gentx)) != self.gentx_hash:
+        #gf:->
+        #if decred_data.hash256(decred_data.tx_type.pack(gentx)) != self.gentx_hash:
+        if decred_data.tx_type.get_tx_full_hash(decred_data.tx_type.pack(gentx)) != self.gentx_hash:
+        #<-gf
             raise ValueError('''gentx doesn't match hash_link''')
         
         if decred_data.calculate_merkle_link([None] + other_tx_hashes, 0) != self.merkle_link:

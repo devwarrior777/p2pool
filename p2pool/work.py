@@ -225,7 +225,10 @@ class WorkerBridge(worker_interface.WorkerBridge):
         mm_data = ''
         mm_later = []
         
-        tx_hashes = [decred_data.hash256(decred_data.tx_type.pack(tx)) for tx in self.current_work.value['transactions']]
+        #gf->
+        #tx_hashes = [decred_data.hash256(decred_data.tx_type.pack(tx)) for tx in self.current_work.value['transactions']]
+        tx_hashes = [decred_data.tx_type.get_tx_full_hash(decred_data.tx_type.pack(tx)) for tx in self.current_work.value['transactions']]
+        #<-gf
         tx_map = dict(zip(tx_hashes, self.current_work.value['transactions']))
         
         previous_share = self.node.tracker.items[self.node.best_share_var.value] if self.node.best_share_var.value is not None else None
