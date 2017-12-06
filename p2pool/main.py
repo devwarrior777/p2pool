@@ -518,7 +518,7 @@ def run():
         help='''connect to JSON-RPC wallet interface at this port (default: %s <read from decred.conf if password not provided>)''' % ', '.join('%s:%i' % (name, net.PARENT.RPC_WALLET_PORT) for name, net in sorted(realnets.items())),
         type=int, action='store', default=None, dest='dcrd_rpc_wallet_port')
     dcrd_group.add_argument('--dcrd-no-rpc-ssl',
-        help='connect to JSON-RPC interface using SSL',                 # default to using SSL unless stated
+        help='connect to JSON-RPC interface - Not using SSL',                 # default to using SSL unless stated
         action='store_true', default=False, dest='dcrd_no_rpc_ssl')
     dcrd_group.add_argument('--dcrd-p2p-port', metavar='DCRD_P2P_PORT',
         help='''connect to P2P interface at this port (default: %s <read from decred.conf if password not provided>)''' % ', '.join('%s:%i' % (name, net.PARENT.P2P_PORT) for name, net in sorted(realnets.items())),
@@ -537,7 +537,7 @@ def run():
     
     
     #
-    # fixed
+    # fixed values
     #
     args.irc_announce = False
     args.net_name = 'decred'
