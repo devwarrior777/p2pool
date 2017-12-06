@@ -9,16 +9,16 @@ This is the fork for a Decred-only P2Pool development
 TBD:
 ----
  - Fork P2Pool - find the best upgraded fork   <-- done
- - Re-work Blake-256 python C module (pyd)     <-- done but should be fixed
+ - Re-work Blake-256 python C module (pyd)     <-- done but should be retested - using python also
     - Build for Linux               
     - Build for VS-2015
  - Adapt P2PPool:
-    - dcrd parameters, settings
-    - update p2p code
-    - blake256 hashing
-    - new rpc code
-    - python setup
-    - python code  
+    - dcrd parameters, settings		  <- mostly done
+    - update p2p code					  <- mostly done
+    - blake256 hashing				  <- mostly done
+    - rebuild merkles					  <- mostly done
+    - new rpc code						  <- mostly done
+    - python setup					
   - Test Pool:
     - Add pool worker(s)
     - Manage pool worker(s)
