@@ -89,13 +89,10 @@ def getwork(dcrd, use_getblocktemplate=True):
         assert work['height'] == (yield dcrd.rpc_getblock(work['previousblockhash']))['height'] + 1
 
     #
-    # Transactions
+    # Transactions/STransactions
     #
     txs = []
     for regtx in work['transactions']:
-#         ptx = tx['data'].decode('hex')
-#         hash = pack.IntType(256, endianness='big').unpack(tx['hash'].decode('hex'))
-#         packed_txs.append({'tx': ptx, 'hash': hash})
         tx = regtx['data']
         hash = regtx['hash']
         txs.append({'tx': tx, 'hash': hash})
@@ -105,13 +102,9 @@ def getwork(dcrd, use_getblocktemplate=True):
         hash = staketx['hash']
         stxs.append({'tx': stx, 'hash': hash}) 
     
-    all_transactions = []
-    all_transactions.extend(txs)
-    all_transactions.extend(stxs)
-
     transaction_records = []
     transaction_hashes = []
-    for t in all_transactions:
+    for t in txs:
         ptx = t['tx'].decode('hex')
         ptx_hash = t['hash'].decode('hex')
         tx_full = decred_data.tx_type.unpack(ptx)
@@ -119,7 +112,7 @@ def getwork(dcrd, use_getblocktemplate=True):
         transaction_records.append(tx_full)
         transaction_hashes.append(tx_full_hash)
         #
-        # TODO: Find out if we need the prefix hashes at a later point in the logic flow
+        # TODO: Find out if we really need the prefix hashes at a later point in the logic flow
         #
         if p2pool.DEBUG:
             alldata = decred_data.tx_type.get_all(ptx)
@@ -130,11 +123,23 @@ def getwork(dcrd, use_getblocktemplate=True):
             assert tx_full_hash == alldata['tx_full_hash']
             print
     
+    stransaction_records = []
+    stransaction_hashes = []
+    for s in stxs:
+        ptx = s['tx'].decode('hex')
+        ptx_hash = s['hash'].decode('hex')
+        tx_full = decred_data.tx_type.unpack(ptx)
+        tx_full_hash = pack.IntType(256, endianness='big').unpack(ptx_hash)         # sent in on getblocktemplate
+        stransaction_records.append(tx_full)
+        stransaction_hashes.append(tx_full_hash)
+    
     wd = dict(
         version=work['version'],
         previous_block=int(work['previousblockhash'], 16),
         transactions=transaction_records,
         transaction_hashes=transaction_hashes,
+        stransactions = stransaction_records,
+        stransaction_hashes=stransaction_hashes,
         transaction_fees=[x.get('fee', None) if isinstance(x, dict) else None for x in work['transactions']], # TODO: FixMe for trans + strans
         subsidy=work['coinbasevalue'],
         time=work['currtime'],

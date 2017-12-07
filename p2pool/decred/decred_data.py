@@ -91,7 +91,7 @@ tx_type_0 = pack.ComposedType([
     ('version', pack.IntType(16)),
     ('sertype', pack.IntType(16)),
     ('tx_ins', pack.ListType(pack.ComposedType([
-        ('outpoint', pack.PossiblyNoneType(dict(hash=0, index=2**32 - 1), pack.ComposedType([
+        ('outpoint', pack.PossiblyNoneType(dict(hash=0, index=2**32 - 1, tree=0), pack.ComposedType([
             ('hash', pack.IntType(256)),
             ('index', pack.IntType(32)),
             ('tree', pack.IntType(8)),
@@ -123,7 +123,7 @@ tx_type_1 = pack.ComposedType([
     ('version', pack.IntType(16)),
     ('sertype', pack.IntType(16)),
     ('tx_ins', pack.ListType(pack.ComposedType([
-        ('outpoint', pack.PossiblyNoneType(dict(hash=0, index=2**32 - 1), pack.ComposedType([
+        ('outpoint', pack.PossiblyNoneType(dict(hash=0, index=2**32 - 1, tree=0), pack.ComposedType([
             ('hash', pack.IntType(256)),
             ('index', pack.IntType(32)),
             ('tree', pack.IntType(8)),
@@ -323,7 +323,7 @@ tx_type = SerializedTx()
 #  
 block_header_type = pack.ComposedType([
     ('version', pack.IntType(32)),
-    ('previous_block', pack.IntType(256)),
+    ('previous_block', pack.PossiblyNoneType(0, pack.IntType(256))),
     ('merkle_root', pack.IntType(256)),
     ('stake_root', pack.IntType(256)),
     ('vote_bits', pack.IntType(16)),

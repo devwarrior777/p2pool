@@ -86,7 +86,7 @@ class WorkerBridge(worker_interface.WorkerBridge):
                     bits=bb['bits'], # not always true
                     coinbaseflags='',
                     height=t['height'] + 1,
-                    time=bb['timestamp'] + 600, # better way?
+                    time=bb['timestamp'] + 300, # better way?
                     transactions=[],
                     transaction_fees=[],
                     merkle_link=decred_data.calculate_merkle_link([None], 0),

@@ -66,7 +66,7 @@ class NewShare(object):
     SUCCESSOR = None
     
     small_block_header_type = pack.ComposedType([
-        ('version', pack.VarIntType()),
+#         ('version', pack.VarIntType()),
         ('previous_block', pack.PossiblyNoneType(0, pack.IntType(256))),
         ('timestamp', pack.IntType(32)),
         ('bits', decred_data.FloatingIntegerType()),
@@ -197,19 +197,42 @@ class NewShare(object):
             abswork=((previous_share.abswork if previous_share is not None else 0) + decred_data.target_to_average_attempts(bits.target)) % 2**128,
         )
         
-        gentx = dict(   # TODO: FIXME!
+        #gf->
+#         gentx = dict(   # TODO: FIXME!
+#             version=1,
+#             tx_ins=[dict(
+#                 previous_output=None,
+#                 sequence=None,
+#                 script=share_data['coinbase'],
+#             )],
+#             tx_outs=[dict(value=amounts[script], script=script) for script in dests if amounts[script] or script == DONATION_SCRIPT] + [dict(
+#                 value=0,
+#                 script='\x6a\x28' + cls.get_ref_hash(net, share_info, ref_merkle_link) + pack.IntType(64).pack(last_txout_nonce),
+#             )],
+#             lock_time=0,
+#         )
+        gentx = dict(
             version=1,
+            sertype=0,
             tx_ins=[dict(
-                previous_output=None,
-                sequence=None,
-                script=share_data['coinbase'],
+                outpoint=None,
+                sequence=0,
             )],
-            tx_outs=[dict(value=amounts[script], script=script) for script in dests if amounts[script] or script == DONATION_SCRIPT] + [dict(
+            tx_outs=[dict(value=amounts[script], script_pk=script, version=0) for script in dests if amounts[script] or script == DONATION_SCRIPT] + [dict(
                 value=0,
-                script='\x6a\x28' + cls.get_ref_hash(net, share_info, ref_merkle_link) + pack.IntType(64).pack(last_txout_nonce),
+                script_pk='\x6a\x28' + cls.get_ref_hash(net, share_info, ref_merkle_link) + pack.IntType(64).pack(last_txout_nonce),
+                version=0,
             )],
             lock_time=0,
+            expiry=0,
+            wtx_ins=[dict(
+                value=0,
+                block_height=0,
+                block_index=0,
+                script_sig='',
+            )],
         )
+        #<-gf
         
         def get_share(header, last_txout_nonce=last_txout_nonce):
             min_header = dict(header); del min_header['merkle_root']
@@ -389,7 +412,7 @@ class Share(object):
     SUCCESSOR = NewShare
     
     small_block_header_type = pack.ComposedType([
-        ('version', pack.VarIntType()),
+#         ('version', pack.VarIntType()),
         ('previous_block', pack.PossiblyNoneType(0, pack.IntType(256))),
         ('timestamp', pack.IntType(32)),
         ('bits', decred_data.FloatingIntegerType()),
@@ -520,20 +543,44 @@ class Share(object):
             abswork=((previous_share.abswork if previous_share is not None else 0) + decred_data.target_to_average_attempts(bits.target)) % 2**128,
         )
         
-        gentx = dict(     # TODO: FIXME!
+        #gf:->
+#         gentx = dict(     # TODO: FIXME!
+#             version=1,
+#             tx_ins=[dict(
+#                 previous_output=None,
+#                 sequence=None,
+#                 script=share_data['coinbase'],
+#             )],
+#             tx_outs=[dict(value=amounts[script], script=script) for script in dests if amounts[script] or script == DONATION_SCRIPT] + [dict(
+#                 value=0,
+#                 script='\x6a\x28' + cls.get_ref_hash(net, share_info, ref_merkle_link) + pack.IntType(64).pack(last_txout_nonce),
+#             )],
+#             lock_time=0,
+#         )
+
+        gentx = dict(
             version=1,
+            sertype=0,
             tx_ins=[dict(
-                previous_output=None,
-                sequence=None,
-                script=share_data['coinbase'],
+                outpoint=None,
+                sequence=0,
             )],
-            tx_outs=[dict(value=amounts[script], script=script) for script in dests if amounts[script] or script == DONATION_SCRIPT] + [dict(
+            tx_outs=[dict(value=amounts[script], script_pk=script, version=0) for script in dests if amounts[script] or script == DONATION_SCRIPT] + [dict(
                 value=0,
-                script='\x6a\x28' + cls.get_ref_hash(net, share_info, ref_merkle_link) + pack.IntType(64).pack(last_txout_nonce),
+                script_pk='\x6a\x28' + cls.get_ref_hash(net, share_info, ref_merkle_link) + pack.IntType(64).pack(last_txout_nonce),
+                version=0,
             )],
             lock_time=0,
+            expiry=0,
+            wtx_ins=[dict(
+                value=0,
+                block_height=0,
+                block_index=0,
+                script_sig=''
+            )],
         )
-        
+        #<-gf
+                
         def get_share(header, last_txout_nonce=last_txout_nonce):
             min_header = dict(header); del min_header['merkle_root']
             share = cls(net, None, dict(

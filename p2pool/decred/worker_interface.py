@@ -81,11 +81,13 @@ class WorkerInterface(object):
                 yield self.worker_bridge.new_work_event.get_deferred()
             self.worker_views[request_id] = self.worker_bridge.new_work_event.times
         
-        x, handler = self.worker_bridge.get_work(*self.worker_bridge.preprocess_request(request.getUser() if request.getUser() is not None else ''))
+        rez = self.worker_bridge.preprocess_request(request.getUser() if request.getUser() is not None else '')
+        x, handler = self.worker_bridge.get_work(*rez)
+#         x, handler = self.worker_bridge.get_work(*self.worker_bridge.preprocess_request(request.getUser() if request.getUser() is not None else ''))
         res = getwork.BlockAttempt(
             version=x['version'],
             previous_block=x['previous_block'],
-            merkle_root=decred_data.check_merkle_link(decred_data.hash256(x['coinb1'] + '\0'*self.worker_bridge.COINBASE_NONCE_LENGTH + x['coinb2']), x['merkle_link']),
+            merkle_root=decred_data.check_merkle_link(decred_data.tx_type.get_tx_full_hash(x['coinb1'] + '\0'*self.worker_bridge.COINBASE_NONCE_LENGTH + x['coinb2']), x['merkle_link']),
             timestamp=x['timestamp'],
             bits=x['bits'],
             share_target=x['share_target'],
